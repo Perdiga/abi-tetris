@@ -1,0 +1,44 @@
+# ABI Trainer
+
+Project scaffold for the ABI Trainer inventory-packing game.
+
+## Source of truth
+
+The locked implementation plan lives in `docs/design/game-design.md`.
+
+## Getting started
+
+### Option A: VS Code Dev Container
+
+1. Install Docker Desktop and the VS Code **Dev Containers** extension.
+2. Open this folder in VS Code.
+3. Run **Dev Containers: Reopen in Container** when prompted (or from the Command Palette).
+4. Wait for the container to build and for `npm install` to finish automatically.
+5. Run the existing scripts in the VS Code terminal:
+
+```bash
+npm run dev
+npm test
+npm run build
+npm run lint
+```
+
+The Vite dev server runs on `http://localhost:5173` and is forwarded automatically by the container.
+
+### Option B: Local Node.js
+
+```bash
+npm install
+npm run dev
+npm test
+npm run build
+npm run lint
+```
+
+## Working areas
+
+- `src/data/` — static catalog and layout definitions
+- `src/engine/` — geometry, rules, inventory, and run simulation
+- `src/components/` — React UI surface
+- `src/state/` — shared app state
+- `src/__tests__/` and `src/test/` — Vitest specs and test setup

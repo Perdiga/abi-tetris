@@ -1,0 +1,77 @@
+.app-shell {
+  min-height: 100vh;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at top, rgba(126, 93, 33, 0.18), transparent 24%),
+    linear-gradient(180deg, #050506 0%, #0d0d0f 32%, #111214 100%);
+  color: #ece8dd;
+}
+
+.app-card {
+  max-width: 720px;
+  margin: 8vh auto 0;
+  padding: 1.35rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(27, 28, 31, 0.94), rgba(18, 19, 22, 0.98));
+  color: #ece8dd;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+}
+
+.app-card__kicker {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #c7a15a;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.app-card h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.app-card__copy {
+  color: rgba(236, 232, 221, 0.82);
+}
+
+.app-card__action {
+  padding: 0.72rem 1rem;
+  border-radius: 3px;
+  border: 1px solid rgba(199, 161, 90, 0.35);
+  background: linear-gradient(180deg, rgba(42, 37, 28, 0.85), rgba(24, 21, 17, 0.98));
+  color: #f7f3e8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.app-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 1rem 0 1.2rem;
+}
+
+.app-results div {
+  padding: 0.75rem 0.85rem;
+  border-radius: 3px;
+  background: rgba(17, 18, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-results dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #9f9a8d;
+}
+
+.app-results dd {
+  margin: 0.3rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
