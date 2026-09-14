@@ -97,7 +97,7 @@ const createFixedGrossScoreInventory = () => {
     targetStorageUnitId: pocketsStorage!.id,
     targetCompartmentId: 'pockets-main',
     x: 1,
-    y: 2,
+    y: 0,
   })
   return inventory
 }

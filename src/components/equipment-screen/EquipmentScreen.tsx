@@ -54,30 +54,28 @@ const LEFT_RAIL_SLOT_IDS: readonly EquipmentSlotId[] = [
   'helmet',
   'helmetFaceShield',
   'mask',
-  'armband',
   'primaryWeapon',
   'secondaryWeapon',
-  'pistol',
-  'melee',
 ]
-const QUICK_USE_SLOT_IDS: readonly EquipmentSlotId[] = ['quickUse5', 'quickUse6', 'quickUse7', 'quickUse8']
-const UTILITY_SLOT_IDS: readonly EquipmentSlotId[] = ['mastery', 'headset']
-const SECURED_SLOT_IDS: readonly EquipmentSlotId[] = ['tacticalVest', 'ballisticVest', 'pockets', 'backpack']
+const RIGHT_RAIL_SLOT_IDS: readonly EquipmentSlotId[] = [
+  'headset',
+  'tacticalVest',
+  'ballisticVest',
+  'backpack',
+  'pistol',
+]
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
   helmet: 'Helmet',
   face_shield: 'Face shield',
   mask: 'Mask',
   headset: 'Headset',
-  armband: 'Armband',
   weapon_primary: 'Primary weapon',
   weapon_secondary: 'Secondary weapon',
   weapon_pistol: 'Pistol',
-  melee: 'Melee',
   vest_tactical: 'Tactical vest',
   vest_ballistic: 'Ballistic vest',
   backpack: 'Backpack',
-  quick_use: 'Quick use',
   ammo: 'Ammo',
   ammo_box: 'Ammo box',
   medkit: 'Medkit',
@@ -135,12 +133,8 @@ const getSlotToneClass = (slotId: EquipmentSlotId): string | null => {
     return 'equipment-screen__slot--weapon'
   }
 
-  if (slotId === 'pistol' || slotId === 'melee') {
+  if (slotId === 'pistol') {
     return 'equipment-screen__slot--sidearm'
-  }
-
-  if (slotId.startsWith('quickUse')) {
-    return 'equipment-screen__slot--quick'
   }
 
   return null
@@ -352,15 +346,13 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   }
 
   const slotGroups: readonly SlotGroup[] = [
-    { title: 'Operator rig', slotIds: LEFT_RAIL_SLOT_IDS },
     {
-      title: 'Quick access',
-      slotIds: QUICK_USE_SLOT_IDS,
-      className: 'equipment-screen__slots equipment-screen__slots--quick',
+      title: 'Operator rig',
+      slotIds: LEFT_RAIL_SLOT_IDS,
+      className: 'equipment-screen__slots equipment-screen__slots--operator',
     },
-    { title: 'Support gear', slotIds: UTILITY_SLOT_IDS },
   ] as const
-  const securedEquipmentSlots = equipmentSlots.filter((slot) => SECURED_SLOT_IDS.includes(slot.slotId))
+  const rightRailSlots = equipmentSlots.filter((slot) => RIGHT_RAIL_SLOT_IDS.includes(slot.slotId))
 
   const nextBotLabel =
     timer.nextBotDeathAtSeconds !== undefined
@@ -407,10 +399,9 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
         </header>
 
         <div className="equipment-screen__main">
-          <aside className="equipment-screen__column equipment-screen__panel equipment-screen__rail">
+          <aside className="equipment-screen__column">
             {slotGroups.map((group) => (
               <section key={group.title}>
-                <h2 className="equipment-screen__section-title">{group.title}</h2>
                 <div className={group.className ?? 'equipment-screen__slots'}>
                   {equipmentSlots
                     .filter((slot) => group.slotIds.includes(slot.slotId))
@@ -520,9 +511,22 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
 
           <section className="equipment-screen__column">
             <section>
-              <h2 className="equipment-screen__section-title">Secured storage slots</h2>
+              <section className="equipment-screen__pockets" aria-label="Pockets">
+                <h3 className="equipment-screen__section-title">Pockets</h3>
+                <div className="equipment-screen__pockets-grid">
+                  {[1, 2, 3, 4].map((slotNumber) => (
+                    <span
+                      aria-label={`Pocket slot ${slotNumber}`}
+                      className="equipment-screen__pocket-slot"
+                      data-testid={`pocket-slot-${slotNumber}`}
+                      key={slotNumber}
+                    />
+                  ))}
+                </div>
+              </section>
+
               <div className="equipment-screen__slots equipment-screen__slots--quick">
-                {securedEquipmentSlots.map((slot) => {
+                {rightRailSlots.map((slot) => {
                   const validation = getValidation({
                     kind: 'equipment-slot',
                     slotId: slot.slotId,
