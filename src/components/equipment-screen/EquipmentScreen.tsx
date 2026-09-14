@@ -362,13 +362,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   ] as const
   const securedEquipmentSlots = equipmentSlots.filter((slot) => SECURED_SLOT_IDS.includes(slot.slotId))
 
-  const scoreCards = [
-    { label: 'Gross secured', value: `$${projectedScore.grossScore.toLocaleString()}`, tone: 'positive' },
-    { label: 'Time multiplier', value: `×${projectedScore.timePenaltyMultiplier.toFixed(2)}`, tone: 'neutral' },
-    { label: 'Projected final', value: `$${projectedScore.finalScore.toLocaleString()}`, tone: 'positive' },
-    { label: 'Medal', value: projectedScore.medal, tone: 'warning' },
-  ] as const
-
   const nextBotLabel =
     timer.nextBotDeathAtSeconds !== undefined
       ? `${Math.max(0, Math.ceil(timer.nextBotDeathAtSeconds - timer.elapsedSeconds))}s`
@@ -402,6 +395,15 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             </span>
             <span className="equipment-screen__header-pill-meta">Projected {projectedScore.medal}</span>
           </div>
+
+            <button
+              className=" equipment-screen__hud-readout equipment-screen__action equipment-screen__action--extract"
+              onClick={handleExtractNow}
+              type="button"
+            >
+              Extract Now
+            </button>
+          
         </header>
 
         <div className="equipment-screen__main">
@@ -512,84 +514,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                   alt="Operator loadout preview"
                   className="equipment-screen__operator-image"
                 />
-              </div>
-              <div className="equipment-screen__mannequin-content">
-                <div className="equipment-screen__callouts">
-                  <span className="equipment-screen__callout">Next contact {nextBotLabel}</span>
-                  <span className="equipment-screen__callout">Phase live</span>
-                  <span className="equipment-screen__callout">{projectedScore.medal} pace</span>
-                </div>
-                <div className="equipment-screen__price-block">
-                  <span className="equipment-screen__price-label">Preço do Equipamento</span>
-                  <strong className="equipment-screen__price-value">${securedValue.toLocaleString()}</strong>
-                  <span className="equipment-screen__price-meta">HUD estimate based on secured value selector</span>
-                </div>
-                <div className="equipment-screen__outfit-row">
-                  <span>Mostrar Traje</span>
-                  <button className="equipment-screen__toggle" type="button">
-                    ON
-                  </button>
-                  <div className="equipment-screen__swatches" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-                <p className="equipment-screen__hint">{statusMessage}</p>
-
-                <div className="equipment-screen__selection-card">
-                  <div>
-                    <p className="equipment-screen__selection-kicker">Selection</p>
-                    <h3>{selectedItem ? selectedItem.name : 'No item selected'}</h3>
-                    <p>
-                      {selectedItem
-                        ? getItemMeta(selectedItem)
-                        : 'Click a filled slot or tile, then click an empty compatible location to move it.'}
-                    </p>
-                  </div>
-                  <div className="equipment-screen__selection-actions">
-                    <button
-                      className="equipment-screen__action equipment-screen__action--danger"
-                      data-testid="drop-to-ground-button"
-                      disabled={!selectedItem}
-                      onClick={() => handleDropToGround()}
-                      type="button"
-                    >
-                      ✕ Drop to ground
-                    </button>
-                    <button
-                      className="equipment-screen__action"
-                      disabled={!selectedItem?.allowRotation}
-                      onClick={handleRotateSelectedItem}
-                      type="button"
-                    >
-                      Rotate 0° / 90°
-                    </button>
-                    <button
-                      className="equipment-screen__action equipment-screen__action--extract"
-                      onClick={handleExtractNow}
-                      type="button"
-                    >
-                      Extract Now
-                    </button>
-                  </div>
-                  {availableStates.length > 1 ? (
-                    <div className="equipment-screen__state-actions">
-                      {availableStates.map((itemState) => (
-                        <button
-                          className="equipment-screen__state-pill"
-                          disabled={selectedItem?.stateId === itemState.id}
-                          key={itemState.id}
-                          onClick={() => handleSetSelectedItemState(itemState.id)}
-                          type="button"
-                        >
-                          {itemState.uiLabel ?? itemState.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+              </div>              
             </div>
           </section>
 
@@ -711,22 +636,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             />
           </aside>
         </div>
-
-        <dl className="equipment-screen__panel equipment-screen__status">
-          {scoreCards.map((metric) => (
-            <div
-              className={clsx(
-                'equipment-screen__status-card',
-                metric.tone === 'positive' && 'equipment-screen__status-card--positive',
-                metric.tone === 'warning' && 'equipment-screen__status-card--warning',
-              )}
-              key={metric.label}
-            >
-              <dt>{metric.label}</dt>
-              <dd>{metric.value}</dd>
-            </div>
-          ))}
-        </dl>
       </div>
     </div>
   )

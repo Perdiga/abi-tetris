@@ -65,14 +65,8 @@ export function GroundLootPanel(props: GroundLootPanelProps) {
       <header className="ground-loot-panel__header">
         <div>
           <p className="ground-loot-panel__kicker">Ground stash</p>
-          <h3>Ground Loot</h3>
-          <p>
-            {groundLootItems.length} item{groundLootItems.length === 1 ? '' : 's'} across {lootSources.length} active
-            {' '}
-            drop{lootSources.length === 1 ? '' : 's'}
-          </p>
         </div>
-        <span className="ground-loot-panel__badge">{groundLootItems.length} live</span>
+        <span className="ground-loot-panel__badge">{groundLootItems.length} items</span>
       </header>
 
       <div
