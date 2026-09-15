@@ -148,26 +148,27 @@
 }
 
 .equipment-screen__pockets {
-  margin-top: 1rem;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
 }
 
-.equipment-screen__pockets .equipment-screen__section-title {
-  margin-bottom: 0.55rem;
+.equipment-screen__pockets-title {
+  margin: 0 0 0.55rem;
 }
 
 .equipment-screen__pockets-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.55rem;
-  max-width: 300px;
+  gap: 0.25rem;
 }
 
-.equipment-screen__pocket-slot {
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 35%),
-    linear-gradient(180deg, rgba(24, 25, 29, 0.98), rgba(13, 14, 16, 0.98));
+.equipment-screen__slot.equipment-screen__pocket-slot {
+  min-height: 68px;
+  padding: 0.3rem;
+}
+
+.equipment-screen__pocket-slot .equipment-screen__slot-empty-icon {
+  font-size: 1rem;
 }
 
 .equipment-screen__slot {

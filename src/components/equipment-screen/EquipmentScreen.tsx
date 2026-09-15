@@ -511,16 +511,22 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
 
           <section className="equipment-screen__column">
             <section>
-              <section className="equipment-screen__pockets" aria-label="Pockets">
-                <h3 className="equipment-screen__section-title">Pockets</h3>
+              <section className="equipment-screen__pockets equipment-screen__panel" aria-label="Pockets">
+                <h3 className="equipment-screen__slot-frame-label equipment-screen__pockets-title">Pockets</h3>
                 <div className="equipment-screen__pockets-grid">
                   {[1, 2, 3, 4].map((slotNumber) => (
                     <span
                       aria-label={`Pocket slot ${slotNumber}`}
-                      className="equipment-screen__pocket-slot"
+                      className="equipment-screen__slot equipment-screen__pocket-slot"
                       data-testid={`pocket-slot-${slotNumber}`}
                       key={slotNumber}
-                    />
+                    >
+                      <span className="equipment-screen__slot-empty">
+                        <span className="equipment-screen__slot-empty-icon" aria-hidden="true">
+                          +
+                        </span>
+                      </span>
+                    </span>
                   ))}
                 </div>
               </section>
