@@ -1,4 +1,5 @@
 import type { EquipmentSlotId, ItemCategory } from '../data'
+import { abiAssetById } from '../data/abi-assets.generated'
 import type { InventoryItemRecord } from './grids/types'
 
 const CATEGORY_SHORT_LABELS: Record<ItemCategory, string> = {
@@ -83,6 +84,11 @@ export const getItemTint = (item: InventoryItemRecord): string => {
 
 export const getItemGlyph = (item: InventoryItemRecord): string =>
   CATEGORY_GLYPHS[item.category] ?? item.name.slice(0, 1)
+
+export const getItemImageSrc = (item: InventoryItemRecord): string | null => {
+  const assetId = item.itemDefinitionId.startsWith('abi-') ? item.itemDefinitionId.slice(4) : item.itemDefinitionId
+  return abiAssetById[assetId]?.assetPath ?? null
+}
 
 export const getItemDescriptor = (item: InventoryItemRecord): string =>
   item.uiStateLabel?.toUpperCase() ?? CATEGORY_SHORT_LABELS[item.category]

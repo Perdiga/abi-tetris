@@ -1,0 +1,17 @@
+[
+  {
+    "id": "backpack_001",
+    "type": "backpack",
+    "name": "Bolsa Lateral",
+    "price": 3399,
+    "asset_path": "assets/backpack/backpack_001.png",
+    "width_slots": 1,
+    "height_slots": 2,
+    "width_slots_open": 2,
+    "height_slots_open": 3,
+    "slots": "[[1,1],[1,1],[1,1]]",
+    "headset_compatible": null,
+    "mask_compatible": null,
+    "shield_compatible": null
+  }
+]

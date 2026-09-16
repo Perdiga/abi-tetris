@@ -13,6 +13,7 @@ import type {
   ShapeMask,
   TimePenaltyBand,
 } from './types'
+import { abiAssetItems, type AbiAssetItem } from './abi-assets.generated'
 
 const measureMask = (shapeMask: ShapeMask) => ({
   boundingWidth: shapeMask[0]?.length ?? 0,
@@ -56,7 +57,7 @@ export const equipmentSlots: readonly EquipmentSlotDefinition[] = [
     label: 'Secondary Weapon',
     slotType: 'weapon',
     maxItems: 1,
-    acceptsCategories: ['weapon_secondary'],
+    acceptsCategories: ['weapon_primary', 'weapon_secondary'],
   },
   { id: 'pistol', label: 'Pistol', slotType: 'weapon', maxItems: 1, acceptsCategories: ['weapon_pistol'] },
   {
@@ -89,12 +90,12 @@ export const equipmentSlots: readonly EquipmentSlotDefinition[] = [
   },
 ] as const
 
-export const containerLayouts: readonly ContainerLayoutDefinition[] = [
+const baseContainerLayouts: readonly ContainerLayoutDefinition[] = [
   {
     id: 'layout-player-pockets',
     name: 'Player pockets',
-    boundingWidth: 2,
-    boundingHeight: 2,
+    boundingWidth: 4,
+    boundingHeight: 1,
     compartmentIds: ['pockets-main'],
     supportsIrregularGeometry: true,
   },
@@ -132,14 +133,14 @@ export const containerLayouts: readonly ContainerLayoutDefinition[] = [
   },
 ] as const
 
-export const containerCompartments: readonly ContainerCompartmentDefinition[] = [
+const baseContainerCompartments: readonly ContainerCompartmentDefinition[] = [
   compartment({
     id: 'pockets-main',
     layoutId: 'layout-player-pockets',
     label: 'main',
     originX: 0,
     originY: 0,
-    shapeMask: ['11', '11'],
+    shapeMask: ['1111'],
     sortOrder: 1,
   }),
   compartment({
@@ -243,7 +244,7 @@ export const containerCompartments: readonly ContainerCompartmentDefinition[] = 
   }),
 ] as const
 
-export const itemStates: readonly ItemStateDefinition[] = [
+const baseItemStates: readonly ItemStateDefinition[] = [
   itemState({
     id: 'state-helmet-assault',
     itemDefinitionId: 'helmet-assault',
@@ -449,7 +450,7 @@ export const itemStates: readonly ItemStateDefinition[] = [
   }),
 ] as const
 
-export const itemDefinitions: readonly ItemDefinition[] = [
+const baseItemDefinitions: readonly ItemDefinition[] = [
   {
     id: 'helmet-assault',
     name: 'Placeholder Assault Helmet',
@@ -638,6 +639,147 @@ export const itemDefinitions: readonly ItemDefinition[] = [
   },
 ] as const
 
+type ExternalItemConfig = {
+  category: ItemDefinition['category']
+  allowedEquipmentSlots: ItemDefinition['allowedEquipmentSlots']
+}
+
+const EXTERNAL_ITEM_CONFIG: Readonly<Record<string, ExternalItemConfig>> = {
+  backpack: { category: 'backpack', allowedEquipmentSlots: ['backpack'] },
+  ballistic_rig: { category: 'vest_tactical', allowedEquipmentSlots: ['tacticalVest'] },
+  ballistic_vest: { category: 'vest_ballistic', allowedEquipmentSlots: ['ballisticVest'] },
+  chest_rig: { category: 'vest_tactical', allowedEquipmentSlots: ['tacticalVest'] },
+  food: { category: 'consumable', allowedEquipmentSlots: [] },
+  headset: { category: 'headset', allowedEquipmentSlots: ['headset'] },
+  helmet: { category: 'helmet', allowedEquipmentSlots: ['helmet'] },
+  helmet_shield: { category: 'face_shield', allowedEquipmentSlots: ['helmetFaceShield'] },
+  key: { category: 'container_misc', allowedEquipmentSlots: [] },
+  mask: { category: 'mask', allowedEquipmentSlots: ['mask'] },
+  medical: { category: 'medkit', allowedEquipmentSlots: [] },
+  pistol: { category: 'weapon_pistol', allowedEquipmentSlots: ['pistol'] },
+  throwable: { category: 'container_misc', allowedEquipmentSlots: [] },
+  varieties: { category: 'container_misc', allowedEquipmentSlots: [] },
+  weapons: { category: 'weapon_primary', allowedEquipmentSlots: ['primaryWeapon', 'secondaryWeapon'] },
+}
+
+const getExternalItemConfig = (item: AbiAssetItem): ExternalItemConfig =>
+  EXTERNAL_ITEM_CONFIG[item.type] ?? { category: 'container_misc', allowedEquipmentSlots: [] }
+
+const toShapeMask = (item: AbiAssetItem): ShapeMask => {
+  const width = Math.max(1, Math.min(item.widthSlots ?? 1, 6))
+  const height = Math.max(1, Math.min(item.heightSlots ?? 1, 6))
+  return Array.from({ length: height }, () => '1'.repeat(width))
+}
+
+type SlotMatrix = readonly (readonly (number | null)[])[]
+
+const parseSlotMatrix = (item: AbiAssetItem): SlotMatrix | null => {
+  if (!item.slots) return null
+
+  try {
+    const value: unknown = JSON.parse(item.slots)
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      !value.every((row) => Array.isArray(row) && row.every((cell) => cell === null || Number.isInteger(cell)))
+    ) {
+      return null
+    }
+
+    return value as SlotMatrix
+  } catch {
+    return null
+  }
+}
+
+const externalLayoutIdFor = (item: AbiAssetItem): string | undefined =>
+  parseSlotMatrix(item) ? `layout-abi-${item.id}` : undefined
+
+const externalContainerLayouts: readonly ContainerLayoutDefinition[] = abiAssetItems.flatMap((item) => {
+  const slots = parseSlotMatrix(item)
+  if (!slots) return []
+
+  return [
+    {
+      id: `layout-abi-${item.id}`,
+      name: item.name,
+      boundingWidth: Math.max(...slots.map((row) => row.length)),
+      boundingHeight: slots.length,
+      compartmentIds: [...new Set(slots.flat().filter((slot): slot is number => slot !== null))]
+        .sort((left, right) => left - right)
+        .map((slot) => `abi-${item.id}-slot-${slot}`),
+      supportsIrregularGeometry: true,
+    },
+  ]
+})
+
+const externalContainerCompartments: readonly ContainerCompartmentDefinition[] = abiAssetItems.flatMap((item) => {
+  const slots = parseSlotMatrix(item)
+  if (!slots) return []
+
+  return [...new Set(slots.flat().filter((slot): slot is number => slot !== null))]
+    .sort((left, right) => left - right)
+    .map((slot, index) => {
+      const cells = slots.flatMap((row, y) =>
+        row.flatMap((value, x) => (value === slot ? [{ x, y }] : [])),
+      )
+      const originX = Math.min(...cells.map((cell) => cell.x))
+      const originY = Math.min(...cells.map((cell) => cell.y))
+      const maxX = Math.max(...cells.map((cell) => cell.x))
+      const maxY = Math.max(...cells.map((cell) => cell.y))
+      const cellSet = new Set(cells.map((cell) => `${cell.x},${cell.y}`))
+
+      return compartment({
+        id: `abi-${item.id}-slot-${slot}`,
+        layoutId: `layout-abi-${item.id}`,
+        label: `slot ${slot}`,
+        originX,
+        originY,
+        shapeMask: Array.from({ length: maxY - originY + 1 }, (_, y) =>
+          Array.from({ length: maxX - originX + 1 }, (_, x) => cellSet.has(`${originX + x},${originY + y}`) ? '1' : '0').join(''),
+        ),
+        sortOrder: index + 1,
+      })
+    })
+})
+
+const externalItemDefinitions: readonly ItemDefinition[] = abiAssetItems.map((item) => {
+  const config = getExternalItemConfig(item)
+  const containerLayoutId = externalLayoutIdFor(item)
+  return {
+    id: `abi-${item.id}`,
+    name: item.name,
+    category: config.category,
+    baseValue: item.price ?? 0,
+    allowedEquipmentSlots: config.allowedEquipmentSlots,
+    tags: containerLayoutId ? ['abi-asset', 'holder-shell'] : ['abi-asset'],
+    defaultStateId: `state-abi-${item.id}`,
+    allowRotation: !containerLayoutId,
+  }
+})
+
+const externalItemStates: readonly ItemStateDefinition[] = abiAssetItems.map((item) => {
+  const containerLayoutId = externalLayoutIdFor(item)
+  return itemState({
+    id: `state-abi-${item.id}`,
+    itemDefinitionId: `abi-${item.id}`,
+    label: 'default',
+    shapeMask: toShapeMask(item),
+    equippable: true,
+    storable: true,
+    containerLayoutId,
+    tags: ['default'],
+  })
+})
+
+export const itemDefinitions: readonly ItemDefinition[] = [...baseItemDefinitions, ...externalItemDefinitions]
+export const itemStates: readonly ItemStateDefinition[] = [...baseItemStates, ...externalItemStates]
+export const containerLayouts: readonly ContainerLayoutDefinition[] = [...baseContainerLayouts, ...externalContainerLayouts]
+export const containerCompartments: readonly ContainerCompartmentDefinition[] = [
+  ...baseContainerCompartments,
+  ...externalContainerCompartments,
+]
+
 export const ruleDefinitions: readonly RuleDefinition[] = [
   {
     id: 'rule-face-shield-requires-helmet-support',
@@ -764,61 +906,63 @@ export const runDefinitions: readonly RunDefinition[] = [
   },
 ] as const
 
+const externalDefinitionIdForType = (type: string): string | undefined => {
+  const item = abiAssetItems.find((candidate) => candidate.type === type)
+  return item ? `abi-${item.id}` : undefined
+}
+
+const externalHelmetDefinitionId = externalDefinitionIdForType('helmet')
+const externalHeadsetDefinitionId = externalDefinitionIdForType('headset')
+const externalBallisticVestDefinitionId = externalDefinitionIdForType('ballistic_vest')
+const externalTacticalVestDefinitionId =
+  externalDefinitionIdForType('chest_rig') ?? externalDefinitionIdForType('ballistic_rig')
+const externalBackpackDefinitionId = externalDefinitionIdForType('backpack')
+const externalMaskDefinitionId = externalDefinitionIdForType('mask')
+const externalPistolDefinitionId = externalDefinitionIdForType('pistol')
+const externalWeaponDefinitionId = externalDefinitionIdForType('weapons')
+const externalFoodDefinitionId = externalDefinitionIdForType('food')
+const externalMedicalDefinitionId = externalDefinitionIdForType('medical')
+const externalThrowableDefinitionId = externalDefinitionIdForType('throwable')
+const externalVarietyDefinitionId = externalDefinitionIdForType('varieties')
+const externalKeyDefinitionId = externalDefinitionIdForType('key')
+
 export const trainingBotLoadoutPool: readonly BotLoadoutTemplate[] = [
   {
     id: 'rifleman',
     equipment: {
-      helmet: 'helmet-assault',
-      primaryWeapon: 'weapon-carbine-compact',
-      tacticalVest: 'vest-tactical-rig',
-      backpack: 'backpack-split',
-      pistol: 'weapon-pistol-service',
+      helmet: externalHelmetDefinitionId ?? 'helmet-assault',
+      primaryWeapon: externalWeaponDefinitionId ?? 'weapon-carbine-compact',
+      tacticalVest: externalTacticalVestDefinitionId ?? 'vest-tactical-rig',
+      backpack: externalBackpackDefinitionId ?? 'backpack-split',
+      pistol: externalPistolDefinitionId ?? 'weapon-pistol-service',
     },
-    backpackContents: [
-      { definitionId: 'ammo-556-box', targetCompartmentId: 'bp-example-top', x: 0, y: 0 },
-      { definitionId: 'medkit-field', targetCompartmentId: 'bp-example-center', x: 0, y: 0 },
-      { definitionId: 'misc-radio', targetCompartmentId: 'bp-example-center', x: 1, y: 1 },
-    ],
-    tacticalVestContents: [
-      { definitionId: 'consumable-ration', targetCompartmentId: 'tactical-left', x: 0, y: 0 },
-      { definitionId: 'ammo-556-box', targetCompartmentId: 'tactical-center', x: 0, y: 0 },
-    ],
+    loot: [externalFoodDefinitionId ?? 'consumable-ration', externalMedicalDefinitionId ?? 'medkit-field'],
   },
   {
     id: 'shotgunner',
     equipment: {
-      mask: 'mask-respirator',
-      secondaryWeapon: 'weapon-shotgun-breacher',
-      tacticalVest: 'vest-tactical-ballistic',
-      backpack: 'backpack-split',
+      mask: externalMaskDefinitionId ?? 'mask-respirator',
+      secondaryWeapon: externalWeaponDefinitionId ?? 'weapon-shotgun-breacher',
+      tacticalVest: externalTacticalVestDefinitionId ?? 'vest-tactical-ballistic',
+      backpack: externalBackpackDefinitionId ?? 'backpack-split',
     },
-    backpackContents: [
-      { definitionId: 'ammo-shells-box', targetCompartmentId: 'bp-example-left', x: 0, y: 0 },
-      { definitionId: 'medkit-field', targetCompartmentId: 'bp-example-center', x: 0, y: 0 },
-      { definitionId: 'consumable-ration', targetCompartmentId: 'bp-example-right', x: 0, y: 0 },
-    ],
-    tacticalVestContents: [{ definitionId: 'ammo-shells-box', targetCompartmentId: 'ballistic-rig-core', x: 0, y: 0 }],
+    loot: [externalThrowableDefinitionId ?? 'misc-radio', externalVarietyDefinitionId ?? 'misc-radio'],
   },
   {
     id: 'support',
     equipment: {
-      helmet: 'helmet-assault',
-      pistol: 'weapon-pistol-service',
-      ballisticVest: 'vest-ballistic-compact',
-      backpack: 'backpack-split',
-      headset: 'headset-comms',
+      helmet: externalHelmetDefinitionId ?? 'helmet-assault',
+      pistol: externalPistolDefinitionId ?? 'weapon-pistol-service',
+      ballisticVest: externalBallisticVestDefinitionId ?? 'vest-ballistic-compact',
+      backpack: externalBackpackDefinitionId ?? 'backpack-split',
+      headset: externalHeadsetDefinitionId ?? 'headset-comms',
     },
-    backpackContents: [
-      { definitionId: 'ammo-556-box', targetCompartmentId: 'bp-example-top', x: 1, y: 0 },
-      { definitionId: 'medkit-field', targetCompartmentId: 'bp-example-center', x: 0, y: 0 },
-      { definitionId: 'misc-radio', targetCompartmentId: 'bp-example-center', x: 1, y: 1 },
-    ],
-    ballisticVestContents: [{ definitionId: 'consumable-ration', targetCompartmentId: 'ballistic-vest-main', x: 0, y: 0 }],
+    loot: [externalKeyDefinitionId ?? 'misc-radio'],
   },
 ] as const
 
 export const playerStarterLoadout = {
-  equipment: {} as Partial<Record<EquipmentSlotId, string>>,
+  equipment: { pockets: 'pockets-standard' } as Partial<Record<EquipmentSlotId, string>>,
 } as const
 
 export const createCatalogIndex = (): CatalogIndex => {

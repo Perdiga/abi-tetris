@@ -297,18 +297,8 @@ export type TrainingRunEvent =
   | { type: 'ADVANCE_TIME'; deltaSeconds: number; queuedAction?: TrainingRunPlayerAction }
   | TrainingRunPlayerAction
 
-export interface BotContainerPlacementTemplate {
-  definitionId: string
-  targetCompartmentId: string
-  x: number
-  y: number
-  rotation?: Rotation
-}
-
 export interface BotLoadoutTemplate {
   id: string
   equipment: Partial<Record<EquipmentSlotId, string>>
-  backpackContents: readonly BotContainerPlacementTemplate[]
-  tacticalVestContents?: readonly BotContainerPlacementTemplate[]
-  ballisticVestContents?: readonly BotContainerPlacementTemplate[]
+  loot: readonly string[]
 }

@@ -13,7 +13,6 @@ export {
   trainingBotLoadoutPool,
 } from './catalog'
 export type {
-  BotContainerPlacementTemplate,
   BotLoadoutTemplate,
   BotRosterEntry,
   BotScheduleEntry,

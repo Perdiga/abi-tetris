@@ -2,7 +2,6 @@ import {
   createCatalogIndex,
   playerStarterLoadout,
   trainingBotLoadoutPool,
-  type BotContainerPlacementTemplate,
   type BotLoadoutTemplate,
   type BotRosterEntry,
   type CatalogIndex,
@@ -23,7 +22,6 @@ import {
   equipItemToSlot,
   getChildItems,
   getStorageUnitForItem,
-  placeItemInStorage,
 } from '../inventory'
 
 const defaultCatalog = createCatalogIndex()
@@ -358,9 +356,7 @@ const seedLoadout = (
   startingInventory: InventoryState,
   template: {
     equipment: Partial<Record<EquipmentSlotId, string>>
-    backpackContents?: readonly BotContainerPlacementTemplate[]
-    tacticalVestContents?: readonly BotContainerPlacementTemplate[]
-    ballisticVestContents?: readonly BotContainerPlacementTemplate[]
+    loot?: readonly string[]
   },
   ownerEntityId: string,
   catalog: CatalogIndex,
@@ -368,8 +364,6 @@ const seedLoadout = (
 ): { inventory: InventoryState; topLevelItemIds: string[] } => {
   let inventory = startingInventory
   const topLevelItemIds: string[] = []
-  const equippedBySlot: Partial<Record<EquipmentSlotId, string>> = {}
-
   for (const [slotId, definitionId] of Object.entries(template.equipment) as Array<[EquipmentSlotId, string]>) {
     const item = createItemInstance(definitionId, catalog, {
       id: `${idPrefix}-${slotId}`,
@@ -377,8 +371,6 @@ const seedLoadout = (
     })
     inventory = addItemInstance(inventory, item, catalog)
     topLevelItemIds.push(item.id)
-    equippedBySlot[slotId] = item.id
-
     if (ownerEntityId !== 'player') {
       continue
     }
@@ -390,85 +382,14 @@ const seedLoadout = (
     }
   }
 
-  inventory = seedContainerContents(
-    inventory,
-    equippedBySlot.backpack,
-    template.backpackContents,
-    ownerEntityId,
-    catalog,
-    `${idPrefix}-backpack`,
-  )
-  inventory = seedContainerContents(
-    inventory,
-    equippedBySlot.tacticalVest,
-    template.tacticalVestContents,
-    ownerEntityId,
-    catalog,
-    `${idPrefix}-tactical-vest`,
-  )
-  inventory = seedContainerContents(
-    inventory,
-    equippedBySlot.ballisticVest,
-    template.ballisticVestContents,
-    ownerEntityId,
-    catalog,
-    `${idPrefix}-ballistic-vest`,
-  )
-  inventory = seedContainerContents(
-    inventory,
-    equippedBySlot.pockets,
-    undefined,
-    ownerEntityId,
-    catalog,
-    `${idPrefix}-pockets`,
-  )
-
-  return { inventory, topLevelItemIds }
-}
-
-const seedContainerContents = (
-  startingInventory: InventoryState,
-  containerItemId: string | undefined,
-  placements: readonly BotContainerPlacementTemplate[] | undefined,
-  ownerEntityId: string,
-  catalog: CatalogIndex,
-  idPrefix: string,
-): InventoryState => {
-  if (!containerItemId || !placements || placements.length === 0) {
-    return startingInventory
-  }
-
-  const storageUnit = getStorageUnitForItem(startingInventory, containerItemId)
-
-  if (!storageUnit) {
-    return startingInventory
-  }
-
-  let inventory = startingInventory
-
-  placements.forEach((placement, index) => {
-    const item = createItemInstance(placement.definitionId, catalog, {
-      id: `${idPrefix}-item-${index}`,
+  template.loot?.forEach((definitionId, index) => {
+    const item = createItemInstance(definitionId, catalog, {
+      id: `${idPrefix}-loot-${index}`,
       ownerEntityId,
     })
     inventory = addItemInstance(inventory, item, catalog)
-    const moved = placeItemInStorage(
-      inventory,
-      {
-        itemInstanceId: item.id,
-        targetStorageUnitId: storageUnit.id,
-        targetCompartmentId: placement.targetCompartmentId,
-        x: placement.x,
-        y: placement.y,
-        rotation: placement.rotation,
-      },
-      catalog,
-    )
-
-    if (moved.ok) {
-      inventory = moved.state
-    }
+    topLevelItemIds.push(item.id)
   })
 
-  return inventory
+  return { inventory, topLevelItemIds }
 }

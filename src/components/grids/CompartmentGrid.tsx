@@ -3,14 +3,12 @@ import './CompartmentGrid.css'
 import type { CSSProperties } from 'react'
 
 import {
-  getItemCounterLabel,
-  getItemDescriptor,
   getItemGlyph,
-  getItemStatusChip,
+  getItemImageSrc,
   getItemTint,
 } from '../itemPresentation'
 import { clsx } from '../utils/clsx'
-import { getItemBounds, getItemMask, getRegionById, getRegionCellSet } from './gridGeometry'
+import { getItemBounds, getRegionById, getRegionCellSet } from './gridGeometry'
 import type { CellTarget, GridLayout, InventoryItemRecord } from './types'
 
 interface PlacementValidation {
@@ -28,9 +26,6 @@ interface CompartmentGridProps {
   getPlacementValidation?: (target: CellTarget) => PlacementValidation | null
 }
 
-const countMaskCells = (mask: readonly string[]) =>
-  mask.reduce((total, row) => total + [...row].filter((cell) => cell === '1').length, 0)
-
 export function CompartmentGrid({
   layout,
   items,
@@ -40,25 +35,8 @@ export function CompartmentGrid({
   onPlaceItem,
   getPlacementValidation,
 }: CompartmentGridProps) {
-  const totalCapacity = layout.regions.reduce((sum, region) => sum + countMaskCells(region.shapeMask), 0)
-  const usedCapacity = items.reduce((sum, record) => sum + countMaskCells(getItemMask(record)), 0)
-
   return (
     <section className="inventory-panel">
-      <header className="inventory-panel__header">
-        <div>
-          <p className="inventory-panel__kicker">Armazenamento</p>
-          <h3 className="inventory-panel__title">{layout.label}</h3>
-          <p className="inventory-panel__subtitle">
-            {usedCapacity}/{totalCapacity} slots used • {layout.regions.length} compartment
-            {layout.regions.length === 1 ? '' : 's'}
-          </p>
-        </div>
-        <span className="inventory-panel__badge">
-          {layout.width}×{layout.height}
-        </span>
-      </header>
-
       <div
         aria-label={layout.label}
         className="compartment-grid"
@@ -80,19 +58,6 @@ export function CompartmentGrid({
 
           return (
             <div key={region.id}>
-              <div
-                className="compartment-grid__region-label"
-                style={
-                  {
-                    '--region-accent': region.accent,
-                    left: `calc(${region.originX} * var(--cell-size))`,
-                    top: `calc(${region.originY} * var(--cell-size) - 0.65rem)`,
-                  } as CSSProperties
-                }
-              >
-                {region.label}
-              </div>
-
               {regionCells.map((cell) => {
                 const target: CellTarget = {
                   kind: 'container',
@@ -135,8 +100,8 @@ export function CompartmentGrid({
                     style={
                       {
                         '--region-fill': `color-mix(in srgb, ${region.accent} 10%, #141519)`,
-                        left: `calc(${region.originX + cell.x} * var(--cell-size))`,
-                        top: `calc(${region.originY + cell.y} * var(--cell-size))`,
+                        left: `calc(${region.originX + cell.x} * (var(--cell-size) + var(--cell-gap)))`,
+                        top: `calc(${region.originY + cell.y} * (var(--cell-size) + var(--cell-gap)))`,
                         width: 'var(--cell-size)',
                         height: 'var(--cell-size)',
                       } as CSSProperties
@@ -156,9 +121,6 @@ export function CompartmentGrid({
           }
 
           const bounds = getItemBounds(record)
-          const mask = getItemMask(record)
-          const statusChip = getItemStatusChip(record)
-
           return (
             <button
               className={clsx(
@@ -177,49 +139,17 @@ export function CompartmentGrid({
               style={
                 {
                   '--item-tint': getItemTint(record),
-                  left: `calc(${region.originX + (record.gridX ?? 0)} * var(--cell-size))`,
-                  top: `calc(${region.originY + (record.gridY ?? 0)} * var(--cell-size))`,
-                  width: `calc(${bounds.width} * var(--cell-size))`,
-                  height: `calc(${bounds.height} * var(--cell-size))`,
+                  left: `calc(${region.originX + (record.gridX ?? 0)} * (var(--cell-size) + var(--cell-gap)))`,
+                  top: `calc(${region.originY + (record.gridY ?? 0)} * (var(--cell-size) + var(--cell-gap)))`,
+                  width: `calc(${bounds.width} * var(--cell-size) + ${bounds.width - 1} * var(--cell-gap))`,
+                  height: `calc(${bounds.height} * var(--cell-size) + ${bounds.height - 1} * var(--cell-gap))`,
                 } as CSSProperties
               }
               type="button"
             >
-              <span className="compartment-grid__item-nameplate">{record.name}</span>
-              {statusChip ? (
-                <span className="compartment-grid__item-chip compartment-grid__item-chip--top-right">
-                  {statusChip}
-                </span>
-              ) : null}
               <span className="compartment-grid__item-art" aria-hidden="true">
-                {getItemGlyph(record)}
+                {getItemImageSrc(record) ? <img alt="" src={getItemImageSrc(record) ?? undefined} /> : getItemGlyph(record)}
               </span>
-              <span className="compartment-grid__item-chip compartment-grid__item-chip--bottom-left">
-                {getItemDescriptor(record)}
-              </span>
-              <span className="compartment-grid__item-chip compartment-grid__item-chip--bottom-right">
-                {getItemCounterLabel(record)}
-              </span>
-              <div
-                className="compartment-grid__footprint"
-                style={
-                  {
-                    gridTemplateColumns: `repeat(${bounds.width}, 1fr)`,
-                  } as CSSProperties
-                }
-              >
-                {mask.flatMap((row, rowIndex) =>
-                  [...row].map((cell, cellIndex) => (
-                    <span
-                      className={clsx(
-                        'compartment-grid__footprint-cell',
-                        cell !== '1' && 'compartment-grid__footprint-cell--empty',
-                      )}
-                      key={`${record.itemInstanceId}-${rowIndex}-${cellIndex}`}
-                    />
-                  )),
-                )}
-              </div>
             </button>
           )
         })}

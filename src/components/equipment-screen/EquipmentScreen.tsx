@@ -10,7 +10,6 @@ import {
   equipTrainingItem,
   extractTrainingRunNow,
   moveTrainingItem,
-  selectAvailableItemStates,
   selectCurrentSecuredValue,
   selectEquipmentSlots,
   selectItem,
@@ -21,7 +20,6 @@ import {
   selectStorageUnit,
   selectTrainingTimer,
   setTrainingItemRotation,
-  setTrainingItemState,
   type TrainingModeAction,
   type TrainingModeActionValidation,
   type TrainingModeStoreState,
@@ -31,11 +29,9 @@ import {
   validateExtractTrainingRunNow,
   validateMoveTrainingItem,
   validateSetTrainingItemRotation,
-  validateSetTrainingItemState,
   validateUnequipTrainingItem,
 } from '../../state/training-mode'
 import { CompartmentGrid } from '../grids/CompartmentGrid'
-import { getItemBounds } from '../grids/gridGeometry'
 import { flattenStorageUnitTree } from '../grids/storageTree'
 import type { CellTarget, InventoryItemRecord, PlacementTarget } from '../grids/types'
 import { toGridLayout } from '../grids/types'
@@ -44,6 +40,7 @@ import {
   getItemCounterLabel,
   getItemDescriptor,
   getItemGlyph,
+  getItemImageSrc,
   getItemStatusChip,
   getItemTint,
   getWeaponSlotBadge,
@@ -81,21 +78,6 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
   medkit: 'Medkit',
   consumable: 'Consumable',
   container_misc: 'Utility',
-}
-
-const getItemMeta = (item: InventoryItemRecord): string => {
-  const bounds = getItemBounds(item)
-  const parts = [`${bounds.width}×${bounds.height}`]
-
-  if (item.currentDurability !== undefined) {
-    parts.push(`${item.currentDurability}`)
-  }
-
-  if (item.uiStateLabel) {
-    parts.push(item.uiStateLabel)
-  }
-
-  return parts.join(' • ')
 }
 
 const toPlacementValidation = (
@@ -137,8 +119,17 @@ const getSlotToneClass = (slotId: EquipmentSlotId): string | null => {
     return 'equipment-screen__slot--sidearm'
   }
 
+  if (slotId === 'headset') {
+    return 'equipment-screen__slot--headset'
+  }
+
   return null
 }
+
+const getSlotHelpLabel = (slot: { slotId: EquipmentSlotId; acceptsCategories: readonly ItemCategory[] }): string =>
+  slot.slotId === 'secondaryWeapon'
+    ? 'Secondary weapon'
+    : slot.acceptsCategories.map((category) => CATEGORY_LABELS[category]).join(' / ')
 
 interface EquipmentScreenProps {
   state: TrainingModeStoreState
@@ -153,7 +144,7 @@ interface SlotGroup {
 
 export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState(
+  const [, setStatusMessage] = useState(
     'Select an item, then click any highlighted cell or compatible equipment slot to move it.',
   )
 
@@ -168,14 +159,16 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     () => (selectedItemId ? selectItem(state, selectedItemId) ?? null : null),
     [state, selectedItemId],
   )
-  const availableStates = useMemo(
-    () => (selectedItem ? selectAvailableItemStates(state, selectedItem.itemInstanceId) : []),
-    [state, selectedItem],
-  )
   const visiblePlayerStorageUnits = useMemo(
     () =>
-      flattenStorageUnitTree(playerStorageUnits, (storageUnitId) => selectStorageUnit(state, storageUnitId)),
+      flattenStorageUnitTree(playerStorageUnits, (storageUnitId) => selectStorageUnit(state, storageUnitId)).filter(
+        ({ storageUnit }) => storageUnit.sourceItem?.equippedSlotId !== 'pockets',
+      ),
     [playerStorageUnits, state],
+  )
+  const pocketsStorageUnit = useMemo(
+    () => playerStorageUnits.find((storageUnit) => storageUnit.sourceItem?.equippedSlotId === 'pockets'),
+    [playerStorageUnits],
   )
 
   useEffect(() => {
@@ -317,24 +310,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     setStatusMessage(`${selectedItem.name} rotated to ${nextRotation}°.`)
   }
 
-  function handleSetSelectedItemState(targetStateId: string) {
-    if (!selectedItem) {
-      return
-    }
-
-    const action = setTrainingItemState(selectedItem.itemInstanceId, targetStateId)
-    const validation = toPlacementValidation(validateSetTrainingItemState(state, action))
-
-    if (!validation?.valid) {
-      setStatusMessage(validation?.reason ?? 'This state change is not allowed.')
-      return
-    }
-
-    dispatch(action)
-    const nextState = availableStates.find((candidate) => candidate.id === targetStateId)
-    setStatusMessage(`${selectedItem.name} switched to ${nextState?.uiLabel ?? nextState?.label ?? targetStateId}.`)
-  }
-
   function handleExtractNow() {
     const validation = toPlacementValidation(validateExtractTrainingRunNow(state))
     if (!validation?.valid) {
@@ -353,11 +328,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     },
   ] as const
   const rightRailSlots = equipmentSlots.filter((slot) => RIGHT_RAIL_SLOT_IDS.includes(slot.slotId))
-
-  const nextBotLabel =
-    timer.nextBotDeathAtSeconds !== undefined
-      ? `${Math.max(0, Math.ceil(timer.nextBotDeathAtSeconds - timer.elapsedSeconds))}s`
-      : 'Cleared'
 
   return (
     <div className="equipment-screen">
@@ -460,7 +430,11 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                             >
                               <span className="equipment-screen__slot-item-nameplate">{slot.item.name}</span>
                               <span className="equipment-screen__slot-item-art" aria-hidden="true">
-                                {getItemGlyph(slot.item)}
+                                {getItemImageSrc(slot.item) ? (
+                                  <img alt="" src={getItemImageSrc(slot.item) ?? undefined} />
+                                ) : (
+                                  getItemGlyph(slot.item)
+                                )}
                               </span>
                               {getItemStatusChip(slot.item) ? (
                                 <span className="equipment-screen__slot-item-chip equipment-screen__slot-item-chip--top-right">
@@ -485,7 +459,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                                 +
                               </span>
                               <span className="equipment-screen__slot-help">
-                                {slot.acceptsCategories.map((category) => CATEGORY_LABELS[category]).join(' / ')}
+                                {getSlotHelpLabel(slot)}
                               </span>
                             </span>
                           )}
@@ -513,22 +487,17 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             <section>
               <section className="equipment-screen__pockets equipment-screen__panel" aria-label="Pockets">
                 <h3 className="equipment-screen__slot-frame-label equipment-screen__pockets-title">Pockets</h3>
-                <div className="equipment-screen__pockets-grid">
-                  {[1, 2, 3, 4].map((slotNumber) => (
-                    <span
-                      aria-label={`Pocket slot ${slotNumber}`}
-                      className="equipment-screen__slot equipment-screen__pocket-slot"
-                      data-testid={`pocket-slot-${slotNumber}`}
-                      key={slotNumber}
-                    >
-                      <span className="equipment-screen__slot-empty">
-                        <span className="equipment-screen__slot-empty-icon" aria-hidden="true">
-                          +
-                        </span>
-                      </span>
-                    </span>
-                  ))}
-                </div>
+                {pocketsStorageUnit ? (
+                  <CompartmentGrid
+                    getPlacementValidation={(target) => getValidation(target)}
+                    items={pocketsStorageUnit.compartments.flatMap((compartment) => compartment.items)}
+                    layout={toGridLayout(pocketsStorageUnit)}
+                    onItemSelect={handleItemSelect}
+                    onPlaceItem={handlePlaceItem}
+                    selectedItem={selectedItem}
+                    selectedItemId={selectedItemId}
+                  />
+                ) : null}
               </section>
 
               <div className="equipment-screen__slots equipment-screen__slots--quick">
@@ -542,6 +511,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                     <button
                       className={clsx(
                         'equipment-screen__slot',
+                        getSlotToneClass(slot.slotId),
                         validation?.valid && 'equipment-screen__slot--valid',
                         validation && !validation.valid && 'equipment-screen__slot--invalid',
                       )}
@@ -561,8 +531,45 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                     >
                       <span className="equipment-screen__slot-frame-label">{slot.label}</span>
                       {slot.item ? (
-                        <span className="equipment-screen__slot-empty">
-                          <span className="equipment-screen__slot-help">{slot.item.name}</span>
+                        <span
+                          className={clsx(
+                            'equipment-screen__slot-item',
+                            selectedItemId === slot.item.itemInstanceId && 'equipment-screen__slot-item--selected',
+                          )}
+                          data-testid={`slot-item-${slot.slotId}`}
+                          draggable
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleItemSelect(slot.item!.itemInstanceId)
+                          }}
+                          onDragStart={(event) => {
+                            event.dataTransfer.effectAllowed = 'move'
+                            event.dataTransfer.setData('text/plain', slot.item!.itemInstanceId)
+                            handleItemSelect(slot.item!.itemInstanceId)
+                          }}
+                          role="button"
+                          style={{ '--item-tint': getItemTint(slot.item) } as CSSProperties}
+                          tabIndex={0}
+                        >
+                          <span className="equipment-screen__slot-item-nameplate">{slot.item.name}</span>
+                          <span className="equipment-screen__slot-item-art" aria-hidden="true">
+                            {getItemImageSrc(slot.item) ? (
+                              <img alt="" src={getItemImageSrc(slot.item) ?? undefined} />
+                            ) : (
+                              getItemGlyph(slot.item)
+                            )}
+                          </span>
+                          {getItemStatusChip(slot.item) ? (
+                            <span className="equipment-screen__slot-item-chip equipment-screen__slot-item-chip--top-right">
+                              {getItemStatusChip(slot.item)}
+                            </span>
+                          ) : null}
+                          <span className="equipment-screen__slot-item-chip equipment-screen__slot-item-chip--bottom-left">
+                            {getItemDescriptor(slot.item)}
+                          </span>
+                          <span className="equipment-screen__slot-item-chip equipment-screen__slot-item-chip--bottom-right">
+                            {getItemCounterLabel(slot.item)}
+                          </span>
                         </span>
                       ) : (
                         <span className="equipment-screen__slot-empty">
@@ -570,7 +577,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                             +
                           </span>
                           <span className="equipment-screen__slot-help">
-                            {slot.acceptsCategories.map((category) => CATEGORY_LABELS[category]).join(' / ')}
+                            {getSlotHelpLabel(slot)}
                           </span>
                         </span>
                       )}
@@ -594,11 +601,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                         selectedItemId === storageUnit.sourceItem.itemInstanceId &&
                           'equipment-screen__storage-source--selected',
                       )}
-                      data-testid={
-                        storageUnit.sourceItem.equippedSlotId
-                          ? `slot-item-${storageUnit.sourceItem.equippedSlotId}`
-                          : `storage-source-${storageUnit.sourceItem.itemInstanceId}`
-                      }
+                      data-testid={`storage-source-${storageUnit.sourceItem.itemInstanceId}`}
                       onClick={() => handleItemSelect(storageUnit.sourceItem!.itemInstanceId)}
                       style={
                         {
@@ -611,7 +614,11 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                         {storageUnit.sourceItem.name}
                       </span>
                       <span className="equipment-screen__storage-source-art" aria-hidden="true">
-                        {getItemGlyph(storageUnit.sourceItem)}
+                        {getItemImageSrc(storageUnit.sourceItem) ? (
+                          <img alt="" src={getItemImageSrc(storageUnit.sourceItem) ?? undefined} />
+                        ) : (
+                          getItemGlyph(storageUnit.sourceItem)
+                        )}
                       </span>
                       <span className="equipment-screen__storage-source-footer">
                         <strong>{storageUnit.layoutName}</strong>

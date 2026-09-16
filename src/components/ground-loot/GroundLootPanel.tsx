@@ -11,7 +11,7 @@ import {
 } from '../../state/training-mode'
 import { flattenStorageUnitTree } from '../grids/storageTree'
 import type { CellTarget, InventoryItemRecord } from '../grids/types'
-import { getItemCounterLabel, getItemDescriptor, getItemGlyph, getItemTint } from '../itemPresentation'
+import { getItemCounterLabel, getItemDescriptor, getItemGlyph, getItemImageSrc, getItemTint } from '../itemPresentation'
 import { clsx } from '../utils/clsx'
 
 interface GroundLootPanelProps {
@@ -111,10 +111,8 @@ export function GroundLootPanel(props: GroundLootPanelProps) {
                 >
                   <span className="ground-loot-panel__item-nameplate">{item.name}</span>
                   <span className="ground-loot-panel__item-art" aria-hidden="true">
-                    {getItemGlyph(item)}
+                    {getItemImageSrc(item) ? <img alt="" src={getItemImageSrc(item) ?? undefined} /> : getItemGlyph(item)}
                   </span>
-                  <span className="ground-loot-panel__item-meta">{getItemDescriptor(item)}</span>
-                  <span className="ground-loot-panel__item-count">{getItemCounterLabel(item)}</span>
                 </button>
 
                 <div className="ground-loot-panel__tooltip" id={tooltipId} role="tooltip">

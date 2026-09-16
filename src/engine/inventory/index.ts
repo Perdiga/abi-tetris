@@ -371,6 +371,13 @@ const applyMove = (
     return fail(`Item "${definition.name}" cannot be stored in its current state.`)
   }
 
+  if (
+    targetCompartment.id === 'pockets-main' &&
+    (itemState.boundingWidth !== 1 || itemState.boundingHeight !== 1)
+  ) {
+    return fail('Pockets only accept 1×1 items.')
+  }
+
   if (wouldCreateStorageCycle(state, action.itemInstanceId, action.targetStorageUnitId)) {
     return fail('Items cannot be moved into themselves or their own descendants.')
   }

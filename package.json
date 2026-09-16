@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "sync:assets": "node scripts/sync-abi-assets.mjs",
+    "sync:assets:metadata": "node scripts/sync-abi-assets.mjs --metadata-only",
+    "prebuild": "npm run sync:assets",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "lint": "oxlint",

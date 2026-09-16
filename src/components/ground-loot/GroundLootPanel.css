@@ -170,6 +170,12 @@
   text-shadow: 0 0 16px rgba(0, 0, 0, 0.45);
 }
 
+.ground-loot-panel__item-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .ground-loot-panel__item-meta {
   left: 0.32rem;
   bottom: 0.32rem;

@@ -80,13 +80,13 @@ const expectSuccessfulPlacement = (
 const createFixedGrossScoreInventory = () => {
   let inventory = createEmptyInventoryState(catalog)
   const pockets = createItemInstance('pockets-standard', catalog, { id: 'score-pockets', ownerEntityId: 'player' })
-  const radio = createItemInstance('misc-radio', catalog, { id: 'score-radio', ownerEntityId: 'player' })
+  const ration = createItemInstance('consumable-ration', catalog, { id: 'score-ration', ownerEntityId: 'player' })
   const ammo = createItemInstance('ammo-556-box', catalog, { id: 'score-ammo', ownerEntityId: 'player' })
-  inventory = [pockets, radio, ammo].reduce((nextState, item) => addItemInstance(nextState, item, catalog), inventory)
+  inventory = [pockets, ration, ammo].reduce((nextState, item) => addItemInstance(nextState, item, catalog), inventory)
   inventory = expectSuccessfulEquip(inventory, pockets.id, 'pockets')
   const pocketsStorage = getStorageUnitForItem(inventory, pockets.id)
   inventory = expectSuccessfulPlacement(inventory, {
-    itemInstanceId: radio.id,
+    itemInstanceId: ration.id,
     targetStorageUnitId: pocketsStorage!.id,
     targetCompartmentId: 'pockets-main',
     x: 0,
@@ -136,13 +136,13 @@ describe('training mode run state machine', () => {
     expect(extracted.lootSources).toHaveLength(6)
   })
 
-  it('starts runs with an empty player loadout and zero secured score', () => {
+  it('starts runs with equipped empty pockets and zero secured score', () => {
     const started = createStartedRun()
 
-    expect(Object.values(started.inventory.equipment).every((itemId) => itemId === null)).toBe(true)
+    expect(started.inventory.equipment.pockets).toBeDefined()
     expect(
       Object.values(started.inventory.itemInstances).filter((item) => item.ownerEntityId === 'player'),
-    ).toEqual([])
+    ).toHaveLength(1)
     expect(scoreTrainingRun(started.inventory, 0, catalog)).toMatchObject({
       grossScore: 0,
       finalScore: 0,
@@ -357,16 +357,16 @@ describe('training mode run state machine', () => {
     const inventory = createFixedGrossScoreInventory()
 
     const cases = [
-      { elapsedSeconds: 180, multiplier: 1, finalScore: 2750 },
-      { elapsedSeconds: 181, multiplier: 0.95, finalScore: 2612 },
-      { elapsedSeconds: 301, multiplier: 0.85, finalScore: 2337 },
-      { elapsedSeconds: 421, multiplier: 0.7, finalScore: 1925 },
-      { elapsedSeconds: 541, multiplier: 0.5, finalScore: 1375 },
+      { elapsedSeconds: 180, multiplier: 1, finalScore: 1400 },
+      { elapsedSeconds: 181, multiplier: 0.95, finalScore: 1330 },
+      { elapsedSeconds: 301, multiplier: 0.85, finalScore: 1190 },
+      { elapsedSeconds: 421, multiplier: 0.7, finalScore: 980 },
+      { elapsedSeconds: 541, multiplier: 0.5, finalScore: 700 },
     ] as const
 
     for (const testCase of cases) {
       const score = scoreTrainingRun(inventory, testCase.elapsedSeconds, catalog)
-      expect(score.grossScore).toBe(2750)
+      expect(score.grossScore).toBe(1400)
       expect(score.timePenaltyMultiplier).toBe(testCase.multiplier)
       expect(score.finalScore).toBe(testCase.finalScore)
     }
@@ -405,12 +405,12 @@ describe('training mode run state machine', () => {
     }
   })
 
-  it('drops a bot backpack as one lootable unit with its contents still nested inside it', () => {
+  it('drops a bot backpack as an empty lootable unit without fixed placements', () => {
     const started = advanceTrainingRun(createTrainingRunState(catalog), { type: 'BEGIN_RUN', seed: 7 }, catalog)
     const afterFirstDrop = advanceToElapsed(started, 1)
     const lootSource = afterFirstDrop.lootSources[0]!
     const droppedBackpackId = lootSource.itemIds.find(
-      (itemId) => afterFirstDrop.inventory.itemInstances[itemId]?.itemDefinitionId === 'backpack-split',
+      (itemId) => afterFirstDrop.inventory.itemInstances[itemId]?.itemDefinitionId === 'abi-backpack_001',
     )
 
     expect(droppedBackpackId).toBeDefined()
@@ -418,12 +418,8 @@ describe('training mode run state machine', () => {
     const droppedBackpackStorage = getStorageUnitForItem(afterFirstDrop.inventory, droppedBackpackId!)
     const nestedChildren = getChildItems(afterFirstDrop.inventory, droppedBackpackStorage!.id)
 
-    expect(nestedChildren.length).toBeGreaterThan(0)
+    expect(nestedChildren).toEqual([])
     expect(lootSource.itemIds).toContain(droppedBackpackId!)
-    nestedChildren.forEach((child) => {
-      expect(lootSource.itemIds).not.toContain(child.id)
-      expect(afterFirstDrop.inventory.itemInstances[child.id]?.ownerEntityId).toBe(lootSource.id)
-    })
   })
 
   it('drops an equipped player item into the reusable ground pile', () => {
@@ -584,16 +580,16 @@ describe('training mode run state machine', () => {
     ])
   })
 
-  it('keeps dropped backpack contents directly enumerable and lootable', () => {
+  it('does not seed dropped backpacks with fixed contents', () => {
     const started = advanceTrainingRun(createTrainingRunState(catalog), { type: 'BEGIN_RUN', seed: 7 }, catalog)
     const afterFirstDrop = advanceTrainingRun(started, { type: 'ADVANCE_TIME', deltaSeconds: 1 }, catalog)
     const droppedBackpackId = afterFirstDrop.lootSources[0]?.itemIds.find((itemId) =>
-      afterFirstDrop.inventory.itemInstances[itemId]?.itemDefinitionId === 'backpack-split',
+      afterFirstDrop.inventory.itemInstances[itemId]?.itemDefinitionId === 'abi-backpack_001',
     )
 
     expect(droppedBackpackId).toBeDefined()
     const droppedBackpackStorage = getStorageUnitForItem(afterFirstDrop.inventory, droppedBackpackId!)
     expect(droppedBackpackStorage).toBeDefined()
-    expect(getChildItems(afterFirstDrop.inventory, droppedBackpackStorage!.id).length).toBeGreaterThan(0)
+    expect(getChildItems(afterFirstDrop.inventory, droppedBackpackStorage!.id)).toEqual([])
   })
 })
