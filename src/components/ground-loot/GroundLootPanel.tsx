@@ -11,7 +11,7 @@ import {
 } from '../../state/training-mode'
 import { flattenStorageUnitTree } from '../grids/storageTree'
 import type { CellTarget, InventoryItemRecord } from '../grids/types'
-import { getItemCounterLabel, getItemDescriptor, getItemGlyph, getItemImageSrc, getItemTint } from '../itemPresentation'
+import { getItemGlyph, getItemImageSrc, getItemTint } from '../itemPresentation'
 import { clsx } from '../utils/clsx'
 
 interface GroundLootPanelProps {
