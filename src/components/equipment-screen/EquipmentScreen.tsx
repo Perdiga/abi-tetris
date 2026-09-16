@@ -358,14 +358,14 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             <span className="equipment-screen__header-pill-meta">Projected {projectedScore.medal}</span>
           </div>
 
-            <button
-              className=" equipment-screen__hud-readout equipment-screen__action equipment-screen__action--extract"
-              onClick={handleExtractNow}
-              type="button"
-            >
-              Extract Now
-            </button>
-          
+          <button
+            className=" equipment-screen__hud-readout equipment-screen__action equipment-screen__action--extract"
+            onClick={handleExtractNow}
+            type="button"
+          >
+            Extract Now
+          </button>
+
         </header>
 
         <div className="equipment-screen__main">
@@ -471,7 +471,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             ))}
           </aside>
 
-          <section className="equipment-screen__column equipment-screen__panel equipment-screen__silhouette">
+          <section className="equipment-screen__silhouette">
             <div className="equipment-screen__mannequin">
               <div className="equipment-screen__operator-stage">
                 <img
@@ -479,7 +479,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                   alt="Operator loadout preview"
                   className="equipment-screen__operator-image"
                 />
-              </div>              
+              </div>
             </div>
           </section>
 
@@ -491,7 +491,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                   <CompartmentGrid
                     getPlacementValidation={(target) => getValidation(target)}
                     items={pocketsStorageUnit.compartments.flatMap((compartment) => compartment.items)}
-                    layout={toGridLayout(pocketsStorageUnit)}
+                    equipment-screen__column equipment-screen__panel equipment-screen__silhouette layout={toGridLayout(pocketsStorageUnit)}
                     onItemSelect={handleItemSelect}
                     onPlaceItem={handlePlaceItem}
                     selectedItem={selectedItem}
@@ -599,7 +599,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                       className={clsx(
                         'equipment-screen__storage-source',
                         selectedItemId === storageUnit.sourceItem.itemInstanceId &&
-                          'equipment-screen__storage-source--selected',
+                        'equipment-screen__storage-source--selected',
                       )}
                       data-testid={`storage-source-${storageUnit.sourceItem.itemInstanceId}`}
                       onClick={() => handleItemSelect(storageUnit.sourceItem!.itemInstanceId)}
