@@ -35,17 +35,27 @@ export function CompartmentGrid({
   onPlaceItem,
   getPlacementValidation,
 }: CompartmentGridProps) {
+  const columnGroupStarts = new Set(layout.regions.map((region) => region.originX).filter((origin) => origin > 0))
+  const rowGroupStarts = new Set(layout.regions.map((region) => region.originY).filter((origin) => origin > 0))
+  const getGroupOffset = (starts: Set<number>, origin: number) =>
+    [...starts].filter((start) => start <= origin).length
+
   return (
     <section className="inventory-panel">
       <div
         aria-label={layout.label}
-        className="compartment-grid"
+        className={clsx(
+          'compartment-grid',
+          layout.regions.length > 1 && 'compartment-grid--grouped',
+        )}
         data-testid={`grid-${layout.testId ?? layout.id}`}
         role="grid"
         style={
           {
             '--grid-columns': String(layout.width),
             '--grid-rows': String(layout.height),
+            '--column-group-gaps': String(columnGroupStarts.size),
+            '--row-group-gaps': String(rowGroupStarts.size),
           } as CSSProperties
         }
       >
@@ -55,6 +65,8 @@ export function CompartmentGrid({
             const [x, y] = value.split(':').map(Number)
             return { x, y }
           })
+          const columnOffset = getGroupOffset(columnGroupStarts, region.originX)
+          const rowOffset = getGroupOffset(rowGroupStarts, region.originY)
 
           return (
             <div key={region.id}>
@@ -100,8 +112,8 @@ export function CompartmentGrid({
                     style={
                       {
                         '--region-fill': `color-mix(in srgb, ${region.accent} 10%, #141519)`,
-                        left: `calc(${region.originX + cell.x} * (var(--cell-size) + var(--cell-gap)))`,
-                        top: `calc(${region.originY + cell.y} * (var(--cell-size) + var(--cell-gap)))`,
+                        left: `calc(${region.originX + cell.x} * var(--cell-size) + ${columnOffset} * var(--group-gap))`,
+                        top: `calc(${region.originY + cell.y} * var(--cell-size) + ${rowOffset} * var(--group-gap))`,
                         width: 'var(--cell-size)',
                         height: 'var(--cell-size)',
                       } as CSSProperties
@@ -121,6 +133,8 @@ export function CompartmentGrid({
           }
 
           const bounds = getItemBounds(record)
+          const columnOffset = getGroupOffset(columnGroupStarts, region.originX)
+          const rowOffset = getGroupOffset(rowGroupStarts, region.originY)
           return (
             <button
               className={clsx(
@@ -139,10 +153,10 @@ export function CompartmentGrid({
               style={
                 {
                   '--item-tint': getItemTint(record),
-                  left: `calc(${region.originX + (record.gridX ?? 0)} * (var(--cell-size) + var(--cell-gap)))`,
-                  top: `calc(${region.originY + (record.gridY ?? 0)} * (var(--cell-size) + var(--cell-gap)))`,
-                  width: `calc(${bounds.width} * var(--cell-size) + ${bounds.width - 1} * var(--cell-gap))`,
-                  height: `calc(${bounds.height} * var(--cell-size) + ${bounds.height - 1} * var(--cell-gap))`,
+                  left: `calc(${region.originX + (record.gridX ?? 0)} * var(--cell-size) + ${columnOffset} * var(--group-gap))`,
+                  top: `calc(${region.originY + (record.gridY ?? 0)} * var(--cell-size) + ${rowOffset} * var(--group-gap))`,
+                  width: `calc(${bounds.width} * var(--cell-size))`,
+                  height: `calc(${bounds.height} * var(--cell-size))`,
                 } as CSSProperties
               }
               type="button"
