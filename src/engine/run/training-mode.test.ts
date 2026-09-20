@@ -422,6 +422,16 @@ describe('training mode run state machine', () => {
     expect(lootSource.itemIds).toContain(droppedBackpackId!)
   })
 
+  it('limits every bot super drop to fifteen items', () => {
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const started = advanceTrainingRun(createTrainingRunState(catalog), { type: 'BEGIN_RUN', seed }, catalog)
+      const afterAllDrops = advanceTrainingRun(started, { type: 'ADVANCE_TIME', deltaSeconds: 600 }, catalog)
+
+      expect(afterAllDrops.lootSources).not.toHaveLength(0)
+      expect(afterAllDrops.lootSources.every((source) => source.itemIds.length <= 15)).toBe(true)
+    }
+  })
+
   it('drops an equipped player item into the reusable ground pile', () => {
     const started = createStartedRunWithPlayerDropFixtures()
 

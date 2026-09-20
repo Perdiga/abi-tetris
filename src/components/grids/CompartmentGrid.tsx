@@ -22,6 +22,7 @@ interface CompartmentGridProps {
   selectedItemId: string | null
   selectedItem: InventoryItemRecord | null
   onItemSelect: (itemId: string) => void
+  onContainerOpen?: (storageUnitId: string) => void
   onPlaceItem: (target: CellTarget) => void
   getPlacementValidation?: (target: CellTarget) => PlacementValidation | null
 }
@@ -32,9 +33,11 @@ export function CompartmentGrid({
   selectedItemId,
   selectedItem,
   onItemSelect,
+  onContainerOpen,
   onPlaceItem,
   getPlacementValidation,
 }: CompartmentGridProps) {
+  const hasSlotDividers = layout.testId === 'pockets'
   const columnGroupStarts = new Set(layout.regions.map((region) => region.originX).filter((origin) => origin > 0))
   const rowGroupStarts = new Set(layout.regions.map((region) => region.originY).filter((origin) => origin > 0))
   const getGroupOffset = (starts: Set<number>, origin: number) =>
@@ -47,6 +50,7 @@ export function CompartmentGrid({
         className={clsx(
           'compartment-grid',
           layout.regions.length > 1 && 'compartment-grid--grouped',
+          hasSlotDividers && 'compartment-grid--slot-divided',
         )}
         data-testid={`grid-${layout.testId ?? layout.id}`}
         role="grid"
@@ -56,6 +60,7 @@ export function CompartmentGrid({
             '--grid-rows': String(layout.height),
             '--column-group-gaps': String(columnGroupStarts.size),
             '--row-group-gaps': String(rowGroupStarts.size),
+            '--column-slot-gaps': String(hasSlotDividers ? layout.width - 1 : 0),
           } as CSSProperties
         }
       >
@@ -112,7 +117,9 @@ export function CompartmentGrid({
                     style={
                       {
                         '--region-fill': `color-mix(in srgb, ${region.accent} 10%, #141519)`,
-                        left: `calc(${region.originX + cell.x} * var(--cell-size) + ${columnOffset} * var(--group-gap))`,
+                        left: `calc(${region.originX + cell.x} * var(--cell-size) + ${
+                          hasSlotDividers ? region.originX + cell.x : columnOffset
+                        } * var(--group-gap))`,
                         top: `calc(${region.originY + cell.y} * var(--cell-size) + ${rowOffset} * var(--group-gap))`,
                         width: 'var(--cell-size)',
                         height: 'var(--cell-size)',
@@ -144,7 +151,14 @@ export function CompartmentGrid({
               data-testid={`item-${record.itemInstanceId}`}
               draggable
               key={record.itemInstanceId}
-              onClick={() => onItemSelect(record.itemInstanceId)}
+              onClick={() => {
+                if (record.containerStorageUnitId && onContainerOpen) {
+                  onContainerOpen(record.containerStorageUnitId)
+                  return
+                }
+
+                onItemSelect(record.itemInstanceId)
+              }}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move'
                 event.dataTransfer.setData('text/plain', record.itemInstanceId)
@@ -153,7 +167,9 @@ export function CompartmentGrid({
               style={
                 {
                   '--item-tint': getItemTint(record),
-                  left: `calc(${region.originX + (record.gridX ?? 0)} * var(--cell-size) + ${columnOffset} * var(--group-gap))`,
+                  left: `calc(${region.originX + (record.gridX ?? 0)} * var(--cell-size) + ${
+                    hasSlotDividers ? region.originX + (record.gridX ?? 0) : columnOffset
+                  } * var(--group-gap))`,
                   top: `calc(${region.originY + (record.gridY ?? 0)} * var(--cell-size) + ${rowOffset} * var(--group-gap))`,
                   width: `calc(${bounds.width} * var(--cell-size))`,
                   height: `calc(${bounds.height} * var(--cell-size))`,

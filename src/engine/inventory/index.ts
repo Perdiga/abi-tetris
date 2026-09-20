@@ -351,6 +351,10 @@ const applyMove = (
     return fail(`Unknown item instance "${action.itemInstanceId}".`)
   }
 
+  if (item.equippedSlotId === 'helmet' && state.equipment.helmetFaceShield) {
+    return fail('Remove the face shield before removing its compatible helmet.')
+  }
+
   if (!targetStorageUnit) {
     return fail(`Unknown target storage "${action.targetStorageUnitId}".`)
   }
@@ -434,6 +438,39 @@ const applyStateChange = (
 
   if (storageUnit && !targetState.containerLayoutId && getChildItems(state, storageUnit.id).length > 0) {
     return fail('Collapsed or rolled storage states require the container to be completely empty in v1.')
+  }
+
+  if (
+    item.parentStorageUnitId &&
+    item.parentCompartmentId &&
+    item.gridX !== undefined &&
+    item.gridY !== undefined
+  ) {
+    const parentStorageUnit = state.storageUnits[item.parentStorageUnitId]
+    const parentCompartment = catalog.compartmentsById[item.parentCompartmentId]
+
+    if (!parentStorageUnit || !parentCompartment || parentCompartment.layoutId !== parentStorageUnit.layoutId) {
+      return fail('The item does not have a valid parent storage location.')
+    }
+
+    const placement = validatePlacement({
+      itemMask: targetState.shapeMask,
+      rotation: item.rotation,
+      compartment: parentCompartment,
+      position: { x: item.gridX, y: item.gridY },
+      occupiedCells: getOccupiedCellsForCompartment(
+        state,
+        parentStorageUnit.id,
+        parentCompartment.id,
+        catalog,
+        itemInstanceId,
+      ),
+      layout: catalog.layoutsById[parentStorageUnit.layoutId],
+    })
+
+    if (!placement.isValid) {
+      return fail(`State change does not fit in the parent container: ${placement.reasons.join(', ')}.`)
+    }
   }
 
   const nextState = cloneInventoryState(state)

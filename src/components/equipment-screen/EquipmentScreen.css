@@ -28,29 +28,16 @@
 
 .equipment-screen__header-copy {
   min-width: 0;
-}
-
-.equipment-screen__kicker {
-  margin: 0 0 0.2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: #c7a15a;
-  font-size: 0.72rem;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
 }
 
 .equipment-screen__title {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.25rem;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.equipment-screen__subtitle {
-  margin: 0.45rem 0 0;
-  color: rgba(236, 232, 221, 0.72);
-  max-width: 70ch;
 }
 
 .equipment-screen__hud-readout {
@@ -105,6 +92,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.equipment-screen__ground-column {
+  grid-row: 1;
+  grid-column: 1 / -1;
 }
 
 .equipment-screen__rail {
@@ -589,8 +581,74 @@
   gap: 0.75rem;
 }
 
+.equipment-screen__storage-back {
+  align-self: flex-start;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  background: rgba(16, 17, 20, 0.96);
+  color: #d8d2c4;
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.equipment-screen__storage-back:hover,
+.equipment-screen__storage-back:focus-visible {
+  border-color: rgba(199, 161, 90, 0.6);
+  color: #f7f3e8;
+  outline: none;
+}
+
 .equipment-screen__storage-node {
   margin-left: var(--storage-depth);
+}
+
+.equipment-screen__storage-node--backpack {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(26, 27, 30, 0.96), rgba(18, 19, 22, 0.98));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+}
+
+.equipment-screen__storage-node--backpack::before {
+  content: 'BACKPACK';
+  grid-column: 1 / -1;
+  color: #8f8a7d;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.equipment-screen__storage-node--backpack .equipment-screen__storage-source {
+  width: 64px;
+  min-height: 64px;
+  height: 64px;
+  margin: 0;
+  padding: 0.2rem;
+}
+
+.equipment-screen__storage-node--backpack .equipment-screen__storage-source-nameplate,
+.equipment-screen__storage-node--backpack .equipment-screen__storage-source-footer {
+  display: none;
+}
+
+.equipment-screen__storage-node--backpack .equipment-screen__storage-source-art {
+  inset: 0.2rem;
+  font-size: 1.8rem;
+}
+
+.equipment-screen__storage-node--backpack .inventory-panel {
+  min-width: 0;
+  padding: 0.5rem;
+  box-shadow: none;
 }
 
 .equipment-screen__storage-source {

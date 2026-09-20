@@ -27,6 +27,74 @@ describe('equipment rules', () => {
     }
   })
 
+  it('requires a compatible helmet before equipping a database face shield', () => {
+    let state = createPlayerInventory()
+    const shield = createItemInstance('abi-helmet_shield_001', catalog, {
+      id: 'database-face-shield',
+      ownerEntityId: 'player',
+    })
+    state = addItemInstance(state, shield, catalog)
+
+    const result = equipItemToSlot(state, shield.id, 'helmetFaceShield', catalog)
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('compatible helmet')
+    }
+  })
+
+  it('allows a database face shield on a database helmet', () => {
+    let state = createPlayerInventory()
+    const helmet = createItemInstance('abi-helmet_001', catalog, { id: 'database-helmet', ownerEntityId: 'player' })
+    const shield = createItemInstance('abi-helmet_shield_001', catalog, {
+      id: 'database-face-shield',
+      ownerEntityId: 'player',
+    })
+
+    state = addItemInstance(addItemInstance(state, helmet, catalog), shield, catalog)
+    const helmetEquip = equipItemToSlot(state, helmet.id, 'helmet', catalog)
+    expect(helmetEquip.ok).toBe(true)
+
+    const shieldEquip = equipItemToSlot(
+      helmetEquip.ok ? helmetEquip.state : state,
+      shield.id,
+      'helmetFaceShield',
+      catalog,
+    )
+    expect(shieldEquip.ok).toBe(true)
+  })
+
+  it('does not allow removing a helmet while its face shield is equipped', () => {
+    let state = createPlayerInventory()
+    const backpack = createItemInstance('backpack-split', catalog, { id: 'backpack', ownerEntityId: 'player' })
+    const helmet = createItemInstance('helmet-assault', catalog, { id: 'helmet', ownerEntityId: 'player' })
+    const shield = createItemInstance('visor-clear', catalog, { id: 'shield', ownerEntityId: 'player' })
+    state = addItemInstance(addItemInstance(addItemInstance(state, backpack, catalog), helmet, catalog), shield, catalog)
+
+    const helmetEquip = equipItemToSlot(state, helmet.id, 'helmet', catalog)
+    expect(helmetEquip.ok).toBe(true)
+    const shieldEquip = equipItemToSlot(helmetEquip.ok ? helmetEquip.state : state, shield.id, 'helmetFaceShield', catalog)
+    expect(shieldEquip.ok).toBe(true)
+
+    const storage = getStorageUnitForItem(shieldEquip.ok ? shieldEquip.state : state, backpack.id)
+    const removal = placeItemInStorage(
+      shieldEquip.ok ? shieldEquip.state : state,
+      {
+        itemInstanceId: helmet.id,
+        targetStorageUnitId: storage!.id,
+        targetCompartmentId: 'bp-example-center',
+        x: 0,
+        y: 0,
+      },
+      catalog,
+    )
+
+    expect(removal.ok).toBe(false)
+    if (!removal.ok) {
+      expect(removal.reason).toContain('Remove the face shield')
+    }
+  })
+
   it('prevents masks and face shields from coexisting', () => {
     let state = createPlayerInventory()
     const helmet = createItemInstance('helmet-assault', catalog, { id: 'helmet', ownerEntityId: 'player' })
@@ -73,6 +141,49 @@ describe('equipment rules', () => {
     expect(helmetEquip.ok).toBe(true)
     const headsetEquip = equipItemToSlot(helmetEquip.ok ? helmetEquip.state : state, headset.id, 'headset', catalog)
     expect(headsetEquip.ok).toBe(false)
+  })
+
+  it('prevents equipping a database mask while a database face shield is equipped', () => {
+    let state = createPlayerInventory()
+    const helmet = createItemInstance('abi-helmet_001', catalog, { id: 'helmet', ownerEntityId: 'player' })
+    const shield = createItemInstance('abi-helmet_shield_001', catalog, { id: 'shield', ownerEntityId: 'player' })
+    const mask = createItemInstance('abi-mask_001', catalog, { id: 'mask', ownerEntityId: 'player' })
+    state = addItemInstance(addItemInstance(addItemInstance(state, helmet, catalog), shield, catalog), mask, catalog)
+
+    const helmetEquip = equipItemToSlot(state, helmet.id, 'helmet', catalog)
+    const shieldEquip = equipItemToSlot(helmetEquip.ok ? helmetEquip.state : state, shield.id, 'helmetFaceShield', catalog)
+    expect(shieldEquip.ok).toBe(true)
+
+    const maskEquip = equipItemToSlot(shieldEquip.ok ? shieldEquip.state : state, mask.id, 'mask', catalog)
+    expect(maskEquip.ok).toBe(false)
+    if (!maskEquip.ok) {
+      expect(maskEquip.reason).toContain('Masks and face shields cannot be worn together')
+    }
+  })
+
+  it('allows equipping a headset without a helmet', () => {
+    let state = createPlayerInventory()
+    const headset = createItemInstance('abi-headset_001', catalog, { id: 'database-headset', ownerEntityId: 'player' })
+    state = addItemInstance(state, headset, catalog)
+
+    const result = equipItemToSlot(state, headset.id, 'headset', catalog)
+    expect(result.ok).toBe(true)
+  })
+
+  it('prevents equipping a helmet that blocks an already-equipped headset', () => {
+    let state = createPlayerInventory()
+    const helmet = createItemInstance('helmet-assault', catalog, { id: 'helmet', ownerEntityId: 'player' })
+    const headset = createItemInstance('headset-comms', catalog, { id: 'headset', ownerEntityId: 'player' })
+    state = addItemInstance(addItemInstance(state, helmet, catalog), headset, catalog)
+
+    const headsetEquip = equipItemToSlot(state, headset.id, 'headset', catalog)
+    expect(headsetEquip.ok).toBe(true)
+    const helmetEquip = equipItemToSlot(headsetEquip.ok ? headsetEquip.state : state, helmet.id, 'helmet', catalog)
+
+    expect(helmetEquip.ok).toBe(false)
+    if (!helmetEquip.ok) {
+      expect(helmetEquip.reason).toContain('Remove the headset')
+    }
   })
 
   it('blocks combining an integrated ballistic tactical vest with a separate ballistic vest', () => {
@@ -211,6 +322,35 @@ describe('equipment rules', () => {
       if (!equipCollapsed.ok) {
         expect(equipCollapsed.reason).toContain('equippable state')
       }
+    }
+  })
+
+  it('only opens a stored bag when its open size fits in the parent backpack', () => {
+    let state = createPlayerInventory()
+    const parent = createItemInstance('backpack-split', catalog, { id: 'parent', ownerEntityId: 'player' })
+    const child = createItemInstance('abi-backpack_001', catalog, {
+      id: 'child',
+      ownerEntityId: 'player',
+      stateId: 'state-abi-backpack_001-collapsed',
+    })
+    state = addItemInstance(addItemInstance(state, parent, catalog), child, catalog)
+
+    expect(getStorageUnitForItem(state, child.id)).toBeUndefined()
+
+    const parentEquip = equipItemToSlot(state, parent.id, 'backpack', catalog)
+    expect(parentEquip.ok).toBe(true)
+    const parentStorage = getStorageUnitForItem(parentEquip.ok ? parentEquip.state : state, parent.id)
+    const placed = placeItemInStorage(
+      parentEquip.ok ? parentEquip.state : state,
+      { itemInstanceId: child.id, targetStorageUnitId: parentStorage!.id, targetCompartmentId: 'bp-example-left', x: 0, y: 0 },
+      catalog,
+    )
+    expect(placed.ok).toBe(true)
+
+    const opened = changeItemState(placed.ok ? placed.state : state, child.id, 'state-abi-backpack_001', catalog)
+    expect(opened.ok).toBe(false)
+    if (!opened.ok) {
+      expect(opened.reason).toContain('does not fit in the parent container')
     }
   })
 })

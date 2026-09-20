@@ -20,6 +20,7 @@ import {
   selectStorageUnit,
   selectTrainingTimer,
   setTrainingItemRotation,
+  setTrainingItemState,
   type TrainingModeAction,
   type TrainingModeActionValidation,
   type TrainingModeStoreState,
@@ -29,6 +30,7 @@ import {
   validateExtractTrainingRunNow,
   validateMoveTrainingItem,
   validateSetTrainingItemRotation,
+  validateSetTrainingItemState,
   validateUnequipTrainingItem,
 } from '../../state/training-mode'
 import { CompartmentGrid } from '../grids/CompartmentGrid'
@@ -56,8 +58,8 @@ const LEFT_RAIL_SLOT_IDS: readonly EquipmentSlotId[] = [
 ]
 const RIGHT_RAIL_SLOT_IDS: readonly EquipmentSlotId[] = [
   'headset',
-  'tacticalVest',
   'ballisticVest',
+  'tacticalVest',
   'backpack',
   'pistol',
 ]
@@ -144,6 +146,7 @@ interface SlotGroup {
 
 export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [activeStorageUnitId, setActiveStorageUnitId] = useState<string | null>(null)
   const [, setStatusMessage] = useState(
     'Select an item, then click any highlighted cell or compatible equipment slot to move it.',
   )
@@ -159,12 +162,20 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     () => (selectedItemId ? selectItem(state, selectedItemId) ?? null : null),
     [state, selectedItemId],
   )
-  const visiblePlayerStorageUnits = useMemo(
+  const playerStorageTree = useMemo(
     () =>
       flattenStorageUnitTree(playerStorageUnits, (storageUnitId) => selectStorageUnit(state, storageUnitId)).filter(
         ({ storageUnit }) => storageUnit.sourceItem?.equippedSlotId !== 'pockets',
       ),
     [playerStorageUnits, state],
+  )
+  const activeStorageUnit = useMemo(
+    () => playerStorageTree.find(({ storageUnit }) => storageUnit.storageUnitId === activeStorageUnitId)?.storageUnit,
+    [activeStorageUnitId, playerStorageTree],
+  )
+  const visiblePlayerStorageUnits = useMemo(
+    () => (activeStorageUnit ? [{ storageUnit: activeStorageUnit, depth: 0 }] : playerStorageTree.filter(({ depth }) => depth === 0)),
+    [activeStorageUnit, playerStorageTree],
   )
   const pocketsStorageUnit = useMemo(
     () => playerStorageUnits.find((storageUnit) => storageUnit.sourceItem?.equippedSlotId === 'pockets'),
@@ -178,6 +189,12 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   }, [selectedItem, selectedItemId])
 
   useEffect(() => {
+    if (activeStorageUnitId && !activeStorageUnit) {
+      setActiveStorageUnitId(null)
+    }
+  }, [activeStorageUnit, activeStorageUnitId])
+
+  useEffect(() => {
     if (operationFeedback.lastError) {
       setStatusMessage(operationFeedback.lastError)
     }
@@ -185,7 +202,8 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== 'r' && event.key !== 'R') {
+      const key = event.key.toLowerCase()
+      if (key !== 'r' && key !== 'f') {
         return
       }
 
@@ -199,7 +217,11 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
       }
 
       event.preventDefault()
-      handleRotateSelectedItem()
+      if (key === 'r') {
+        handleRotateSelectedItem()
+      } else {
+        handleToggleSelectedBackpack()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -243,6 +265,17 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     setStatusMessage(
       `Selected ${clickedItem.name}. Click a compatible slot or a valid highlighted cell to place it.`,
     )
+  }
+
+  function handleContainerOpen(storageUnitId: string) {
+    setActiveStorageUnitId(storageUnitId)
+    setSelectedItemId(null)
+  }
+
+  function handleStorageBack() {
+    const parentStorageUnitId = activeStorageUnit?.sourceItem?.parentStorageUnitId
+    setActiveStorageUnitId(parentStorageUnitId ?? null)
+    setSelectedItemId(null)
   }
 
   function handlePlaceItem(target: PlacementTarget) {
@@ -310,6 +343,34 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
     setStatusMessage(`${selectedItem.name} rotated to ${nextRotation}°.`)
   }
 
+  function handleToggleSelectedBackpack() {
+    if (selectedItem?.category !== 'backpack') {
+      return
+    }
+
+    const currentState = state.catalog.itemStatesById[selectedItem.stateId]
+    const currentIsOpen = currentState?.tags.includes('state-open')
+    const targetState = selectedItem.availableStateIds
+      .map((stateId) => state.catalog.itemStatesById[stateId])
+      .find((candidate) => candidate && candidate.tags.includes(currentIsOpen ? 'state-collapsed' : 'state-open'))
+
+    if (!targetState) {
+      setStatusMessage(`${selectedItem.name} cannot be opened or closed.`)
+      return
+    }
+
+    const action = setTrainingItemState(selectedItem.itemInstanceId, targetState.id)
+    const validation = toPlacementValidation(validateSetTrainingItemState(state, action))
+
+    if (!validation?.valid) {
+      setStatusMessage(validation?.reason ?? `This backpack cannot be ${currentIsOpen ? 'closed' : 'opened'} right now.`)
+      return
+    }
+
+    dispatch(action)
+    setStatusMessage(`${selectedItem.name} ${currentIsOpen ? 'closed' : 'opened'}.`)
+  }
+
   function handleExtractNow() {
     const validation = toPlacementValidation(validateExtractTrainingRunNow(state))
     if (!validation?.valid) {
@@ -334,12 +395,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
       <div className="equipment-screen__shell">
         <header className="equipment-screen__panel equipment-screen__header">
           <div className="equipment-screen__header-copy">
-            <p className="equipment-screen__kicker">ABI Trainer //</p>
             <h1 className="equipment-screen__title">Loadout staging</h1>
-            <p className="equipment-screen__subtitle">
-              Tactical training HUD wired to the engine-backed run state. Every placement preview, loot
-              drop, and score update still comes from the existing selectors and validators.
-            </p>
           </div>
 
           <div className="equipment-screen__hud-readout">
@@ -493,6 +549,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                     items={pocketsStorageUnit.compartments.flatMap((compartment) => compartment.items)}
                     equipment-screen__column equipment-screen__panel equipment-screen__silhouette layout={toGridLayout(pocketsStorageUnit)}
                     onItemSelect={handleItemSelect}
+                    onContainerOpen={handleContainerOpen}
                     onPlaceItem={handlePlaceItem}
                     selectedItem={selectedItem}
                     selectedItemId={selectedItemId}
@@ -502,6 +559,10 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
 
               <div className="equipment-screen__slots equipment-screen__slots--quick">
                 {rightRailSlots.map((slot) => {
+                  if (slot.slotId === 'backpack' && slot.item) {
+                    return null
+                  }
+
                   const validation = getValidation({
                     kind: 'equipment-slot',
                     slotId: slot.slotId,
@@ -588,9 +649,18 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             </section>
 
             <div className="equipment-screen__storage-stack">
+              {activeStorageUnit?.sourceItem?.parentStorageUnitId ? (
+                <button className="equipment-screen__storage-back" onClick={handleStorageBack} type="button">
+                  ← Back to outer backpack
+                </button>
+              ) : null}
               {visiblePlayerStorageUnits.map(({ storageUnit, depth }) => (
                 <div
-                  className="equipment-screen__storage-node"
+                  className={clsx(
+                    'equipment-screen__storage-node',
+                    storageUnit.sourceItem?.equippedSlotId === 'backpack' &&
+                      'equipment-screen__storage-node--backpack',
+                  )}
                   key={storageUnit.storageUnitId}
                   style={{ '--storage-depth': `${depth * 14}px` } as CSSProperties}
                 >
@@ -632,6 +702,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                     items={storageUnit.compartments.flatMap((compartment) => compartment.items)}
                     layout={toGridLayout(storageUnit)}
                     onItemSelect={handleItemSelect}
+                    onContainerOpen={handleContainerOpen}
                     onPlaceItem={handlePlaceItem}
                     selectedItem={selectedItem}
                     selectedItemId={selectedItemId}

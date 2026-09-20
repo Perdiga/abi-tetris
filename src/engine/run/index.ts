@@ -25,6 +25,8 @@ import {
 } from '../inventory'
 
 const defaultCatalog = createCatalogIndex()
+const MAX_BOT_DROP_ITEMS = 15
+const MIN_RANDOM_BOT_LOOT_ITEMS = 3
 
 const createSeededRng = (seed: number) => {
   let value = seed >>> 0
@@ -129,7 +131,7 @@ const loadRunData = (
 
   definition.botDeathSchedule.forEach((_, index) => {
     const botId = `bot-${index + 1}`
-    const template = trainingBotLoadoutPool[Math.floor(rng() * trainingBotLoadoutPool.length)] as BotLoadoutTemplate
+    const template = createRandomBotLoadout(catalog, rng, botId)
     const seeded = seedLoadout(inventory, template, botId, catalog, botId)
     inventory = seeded.inventory
     botRoster.push({ botId, topLevelItemIds: seeded.topLevelItemIds, dropped: false })
@@ -147,6 +149,38 @@ const loadRunData = (
     })),
     lootSources: [],
     phaseHistory: ['PreRun', 'LoadRunData', 'RunActive:AwaitNextBotDeath'],
+  }
+}
+
+const createRandomBotLoadout = (
+  catalog: CatalogIndex,
+  rng: () => number,
+  botId: string,
+): BotLoadoutTemplate => {
+  const backpackDefinitionId =
+    trainingBotLoadoutPool[0]?.equipment.backpack ??
+    catalog.itemDefinitions.find((definition) => definition.category === 'backpack')?.id
+  const availableDefinitionIds = catalog.itemDefinitions.map((definition) => definition.id)
+  const loot: string[] = []
+
+  if (backpackDefinitionId) {
+    availableDefinitionIds.splice(availableDefinitionIds.indexOf(backpackDefinitionId), 1)
+  }
+
+  const equippedItemCount = backpackDefinitionId ? 1 : 0
+  const maximumLootItems = Math.min(MAX_BOT_DROP_ITEMS - equippedItemCount, availableDefinitionIds.length)
+  const minimumLootItems = Math.min(MIN_RANDOM_BOT_LOOT_ITEMS, maximumLootItems)
+  const itemCount = minimumLootItems + Math.floor(rng() * (maximumLootItems - minimumLootItems + 1))
+
+  while (loot.length < itemCount) {
+    const itemIndex = Math.floor(rng() * availableDefinitionIds.length)
+    loot.push(availableDefinitionIds.splice(itemIndex, 1)[0]!)
+  }
+
+  return {
+    id: `random-${botId}`,
+    equipment: backpackDefinitionId ? { backpack: backpackDefinitionId } : {},
+    loot,
   }
 }
 

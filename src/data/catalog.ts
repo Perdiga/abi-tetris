@@ -665,9 +665,9 @@ const EXTERNAL_ITEM_CONFIG: Readonly<Record<string, ExternalItemConfig>> = {
 const getExternalItemConfig = (item: AbiAssetItem): ExternalItemConfig =>
   EXTERNAL_ITEM_CONFIG[item.type] ?? { category: 'container_misc', allowedEquipmentSlots: [] }
 
-const toShapeMask = (item: AbiAssetItem): ShapeMask => {
-  const width = Math.max(1, Math.min(item.widthSlots ?? 1, 6))
-  const height = Math.max(1, Math.min(item.heightSlots ?? 1, 6))
+const toShapeMask = (item: AbiAssetItem, open = false): ShapeMask => {
+  const width = Math.max(1, Math.min((open ? item.widthSlotsOpen : item.widthSlots) ?? item.widthSlots ?? 1, 6))
+  const height = Math.max(1, Math.min((open ? item.heightSlotsOpen : item.heightSlots) ?? item.heightSlots ?? 1, 6))
   return Array.from({ length: height }, () => '1'.repeat(width))
 }
 
@@ -694,6 +694,18 @@ const parseSlotMatrix = (item: AbiAssetItem): SlotMatrix | null => {
 
 const externalLayoutIdFor = (item: AbiAssetItem): string | undefined =>
   parseSlotMatrix(item) ? `layout-abi-${item.id}` : undefined
+
+const hasOpenBackpackState = (item: AbiAssetItem): boolean =>
+  item.type === 'backpack' &&
+  item.widthSlotsOpen !== null &&
+  item.heightSlotsOpen !== null &&
+  externalLayoutIdFor(item) !== undefined
+
+const externalItemTags = (item: AbiAssetItem, containerLayoutId: string | undefined): readonly string[] => [
+  'abi-asset',
+  ...(containerLayoutId ? ['holder-shell'] : []),
+  ...(item.type === 'helmet' ? ['supports-face-shield'] : []),
+]
 
 const externalContainerLayouts: readonly ContainerLayoutDefinition[] = abiAssetItems.flatMap((item) => {
   const slots = parseSlotMatrix(item)
@@ -752,24 +764,44 @@ const externalItemDefinitions: readonly ItemDefinition[] = abiAssetItems.map((it
     category: config.category,
     baseValue: item.price ?? 0,
     allowedEquipmentSlots: config.allowedEquipmentSlots,
-    tags: containerLayoutId ? ['abi-asset', 'holder-shell'] : ['abi-asset'],
+    tags: externalItemTags(item, containerLayoutId),
     defaultStateId: `state-abi-${item.id}`,
     allowRotation: !containerLayoutId,
   }
 })
 
-const externalItemStates: readonly ItemStateDefinition[] = abiAssetItems.map((item) => {
+const externalItemStates: readonly ItemStateDefinition[] = abiAssetItems.flatMap((item) => {
   const containerLayoutId = externalLayoutIdFor(item)
-  return itemState({
+  const isOpenBackpack = hasOpenBackpackState(item)
+  const openState = itemState({
     id: `state-abi-${item.id}`,
     itemDefinitionId: `abi-${item.id}`,
-    label: 'default',
-    shapeMask: toShapeMask(item),
+    label: isOpenBackpack ? 'open' : 'default',
+    shapeMask: toShapeMask(item, isOpenBackpack),
     equippable: true,
     storable: true,
     containerLayoutId,
-    tags: ['default'],
+    uiLabel: isOpenBackpack ? 'Open' : undefined,
+    tags: isOpenBackpack ? ['state-open', 'default'] : ['default'],
   })
+
+  if (!isOpenBackpack) {
+    return [openState]
+  }
+
+  return [
+    openState,
+    itemState({
+      id: `state-abi-${item.id}-collapsed`,
+      itemDefinitionId: `abi-${item.id}`,
+      label: 'collapsed',
+      shapeMask: toShapeMask(item),
+      equippable: false,
+      storable: true,
+      uiLabel: 'Collapsed',
+      tags: ['state-collapsed'],
+    }),
+  ]
 })
 
 export const itemDefinitions: readonly ItemDefinition[] = [...baseItemDefinitions, ...externalItemDefinitions]
@@ -797,7 +829,7 @@ export const ruleDefinitions: readonly RuleDefinition[] = [
     kind: 'paired-slot-tag-conflict',
     subjectSlots: ['mask'],
     otherSlots: ['helmetFaceShield'],
-    otherTags: ['requires-face-shield-support'],
+    otherTags: [],
     effect: 'deny',
     message: 'Masks and face shields cannot be worn together.',
   },
@@ -807,7 +839,7 @@ export const ruleDefinitions: readonly RuleDefinition[] = [
     kind: 'paired-slot-tag-conflict',
     subjectSlots: ['helmetFaceShield'],
     otherSlots: ['mask'],
-    otherTags: ['blocks-face-shield'],
+    otherTags: [],
     effect: 'deny',
     message: 'Cannot equip a face shield while a conflicting mask is equipped; a face shield blocks the mask slot.',
   },
@@ -820,6 +852,17 @@ export const ruleDefinitions: readonly RuleDefinition[] = [
     otherTags: ['blocks-headset'],
     effect: 'deny',
     message: 'This helmet blocks headset use.',
+  },
+  {
+    id: 'rule-headset-blocks-helmet',
+    priority: 89,
+    kind: 'paired-slot-tag-conflict',
+    subjectSlots: ['helmet'],
+    subjectTags: ['blocks-headset'],
+    otherSlots: ['headset'],
+    otherTags: [],
+    effect: 'deny',
+    message: 'Remove the headset before equipping a helmet that blocks it.',
   },
   {
     id: 'rule-ballistic-rig-blocks-separate-vest',

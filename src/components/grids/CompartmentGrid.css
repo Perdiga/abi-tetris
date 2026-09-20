@@ -10,13 +10,20 @@
   --cell-size: 34px;
   --group-gap: 0px;
   position: relative;
-  width: calc(var(--grid-columns) * var(--cell-size) + var(--column-group-gaps) * var(--group-gap));
+  width: calc(
+    var(--grid-columns) * var(--cell-size) +
+      (var(--column-group-gaps) + var(--column-slot-gaps)) * var(--group-gap)
+  );
   height: calc(var(--grid-rows) * var(--cell-size) + var(--row-group-gaps) * var(--group-gap));
   max-width: 100%;
   background: rgba(9, 9, 11, 0.92);
 }
 
 .compartment-grid--grouped {
+  --group-gap: 5px;
+}
+
+.compartment-grid--slot-divided {
   --group-gap: 5px;
 }
 
