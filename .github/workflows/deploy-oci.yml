@@ -1,0 +1,67 @@
+name: Deploy to OCI Object Storage
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oci-production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and publish static site
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      OCI_CLI_CONFIG_FILE: ${{ github.workspace }}/.oci/config
+      OCI_CLI_AUTH: api_key
+      OCI_BUCKET_NAME: ${{ secrets.OCI_BUCKET_NAME }}
+      OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify, test, and build
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Install OCI CLI
+        run: python -m pip install --disable-pip-version-check oci-cli
+
+      - name: Configure OCI API-key authentication
+        env:
+          OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
+          OCI_API_KEY: ${{ secrets.OCI_API_KEY }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.oci"
+          printf '%s' "$OCI_CONFIG" > "$OCI_CLI_CONFIG_FILE"
+          printf '%s' "$OCI_API_KEY" > "$GITHUB_WORKSPACE/.oci/oci_api_key.pem"
+          sed -i "s|^key_file=.*|key_file=$GITHUB_WORKSPACE/.oci/oci_api_key.pem|" "$OCI_CLI_CONFIG_FILE"
+          chmod 600 "$GITHUB_WORKSPACE/.oci/oci_api_key.pem"
+
+      - name: Publish dist to Object Storage
+        run: |
+          oci os object bulk-upload \
+            --namespace "$OCI_NAMESPACE" \
+            --bucket-name "$OCI_BUCKET_NAME" \
+            --src-dir dist \
+            --overwrite \
+            --parallel-upload-count 10

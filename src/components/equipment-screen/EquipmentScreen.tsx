@@ -16,7 +16,6 @@ import {
   selectOperationFeedback,
   selectPlayersRemaining,
   selectPlayerStorageUnits,
-  selectProjectedScoreBreakdown,
   selectStorageUnit,
   selectTrainingTimer,
   setTrainingItemRotation,
@@ -156,7 +155,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
   const timer = useMemo(() => selectTrainingTimer(state), [state])
   const playersRemaining = useMemo(() => selectPlayersRemaining(state), [state])
   const securedValue = useMemo(() => selectCurrentSecuredValue(state), [state])
-  const projectedScore = useMemo(() => selectProjectedScoreBreakdown(state), [state])
   const operationFeedback = useMemo(() => selectOperationFeedback(state), [state])
   const selectedItem = useMemo(
     () => (selectedItemId ? selectItem(state, selectedItemId) ?? null : null),
@@ -411,7 +409,6 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
             <span className="equipment-screen__header-pill-value" data-testid="secured-value">
               ${securedValue.toLocaleString()}
             </span>
-            <span className="equipment-screen__header-pill-meta">Projected {projectedScore.medal}</span>
           </div>
 
           <button
@@ -659,7 +656,7 @@ export function EquipmentScreen({ state, dispatch }: EquipmentScreenProps) {
                   className={clsx(
                     'equipment-screen__storage-node',
                     storageUnit.sourceItem?.equippedSlotId === 'backpack' &&
-                      'equipment-screen__storage-node--backpack',
+                    'equipment-screen__storage-node--backpack',
                   )}
                   key={storageUnit.storageUnitId}
                   style={{ '--storage-depth': `${depth * 14}px` } as CSSProperties}

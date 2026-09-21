@@ -25,6 +25,13 @@ npm run lint
 
 The Vite dev server runs on `http://localhost:5173` and is forwarded automatically by the container.
 
+## Deployment
+
+The repository includes GitHub Actions CI and automatic deployment to an OCI
+Always Free Object Storage static website. See
+[the OCI deployment guide](docs/deployment-oci-always-free.md) to create the
+bucket and configure the required GitHub secrets.
+
 ### Option B: Local Node.js
 
 ```bash

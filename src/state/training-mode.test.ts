@@ -19,12 +19,13 @@ import {
 const catalog = createCatalogIndex()
 
 describe('training mode store validators', () => {
-  it('starts a run with no equipped items, no secured storage, and zero projected score', () => {
+  it('starts a run with the player starter loadout, no secured storage, and zero projected score', () => {
     let state = createTrainingModeStore(catalog)
     state = trainingModeReducer(state, beginTrainingRun(7))
 
-    expect(selectEquipmentSlots(state).every((slot) => slot.item === undefined)).toBe(true)
-    expect(selectPlayerStorageUnits(state)).toEqual([])
+    expect(selectEquipmentSlots(state).find((slot) => slot.slotId === 'pockets')?.item).toBeDefined()
+    expect(selectEquipmentSlots(state).filter((slot) => slot.slotId !== 'pockets').every((slot) => slot.item === undefined)).toBe(true)
+    expect(selectPlayerStorageUnits(state)).toHaveLength(1)
     expect(selectCurrentSecuredValue(state)).toBe(0)
     expect(selectProjectedScoreBreakdown(state)).toMatchObject({
       grossScore: 0,
