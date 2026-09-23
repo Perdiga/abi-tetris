@@ -10,3 +10,4 @@
 .squad-workstream
 node_modules/
 public/abi-assets/
+infrastructure/.terraform
